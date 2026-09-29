@@ -1118,7 +1118,7 @@ chrome.runtime.onMessage.addListener((msg, _remitente, responder) => {
  *    carpeta; cada minuto se compara la version del manifest del disco con
  *    la que esta corriendo y, si cambio, la extension se recarga sola.
  */
-const REPO_ACTUALIZACIONES = "USUARIO/REPOSITORIO"; // p. ej. "rixius/vyxen"
+const REPO_ACTUALIZACIONES = "shadowzevax/vxn-release";
 const URL_VERSION = "https://raw.githubusercontent.com/" + REPO_ACTUALIZACIONES + "/main/version.json";
 
 const compararVersiones = (a, b) => {

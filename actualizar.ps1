@@ -5,7 +5,7 @@
 # basta con refrescar las pestanas de la Biblioteca de anuncios.
 
 $ErrorActionPreference = "Stop"
-$Repo = "USUARIO/REPOSITORIO"
+$Repo = "shadowzevax/vxn-release"
 $Rama = "main"
 $Destino = $PSScriptRoot
 
