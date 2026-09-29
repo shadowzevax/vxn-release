@@ -8,6 +8,11 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.2.0
+- Nueva pagina de Ajustes a pantalla completa, organizada por secciones:
+  actualizaciones (con "Buscar ahora"), boton de WhatsApp, busqueda, tus
+  datos y panel/bandeja.
+
 ## 1.1.0
 - Apariencia: intensidad del brillo, tamaño del brillo y grosor del borde
   del halo de las tarjetas, configurables por cada usuario.

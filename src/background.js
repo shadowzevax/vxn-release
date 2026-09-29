@@ -1069,8 +1069,14 @@ chrome.runtime.onMessage.addListener((msg, _remitente, responder) => {
 
   // Boton "Ajustes" del panel: abre la pagina de ajustes de la extension.
   if (msg.tipo === "abrirAjustes") {
-    chrome.tabs.create({ url: chrome.runtime.getURL("src/popup.html") });
+    chrome.tabs.create({ url: chrome.runtime.getURL("src/ajustes.html") });
     return false;
+  }
+
+  // Boton "Buscar ahora" de la pagina de ajustes.
+  if (msg.tipo === "buscarActualizacion") {
+    buscarActualizacion().then(() => responder(true));
+    return true;
   }
 
   if (msg.tipo === "cancelarWhatsapp") {

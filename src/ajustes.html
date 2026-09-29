@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vyxen — Ajustes</title>
+    <link rel="icon" href="../icons/vyxen-32.png" />
+    <style>
+      :root {
+        --tinta: #0b0b0d;
+        --grafito: #1a1b1f;
+        --plata: #c9ccd3;
+        --gris: #6b7280;
+        --linea: #e6e8ec;
+        --fondo: #f3f4f6;
+        --verde: #12d95e;
+        --verde-osc: #0a8f3d;
+        --rojo: #d3272b;
+        --ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; font: 14px/1.5 var(--ui); color: var(--tinta); background: var(--fondo); }
+
+      /* ---------- cabecera ---------- */
+      .cabecera {
+        background: radial-gradient(circle at 20% 0%, #2a2c32 0%, var(--tinta) 60%);
+        color: #fff;
+        padding: 34px 24px 90px;
+      }
+      .cabecera-dentro { max-width: 832px; margin: 0 auto; display: flex; align-items: center; gap: 18px; }
+      .cabecera img { width: 64px; height: 64px; filter: grayscale(1) brightness(2.4) contrast(1.15) drop-shadow(0 0 8px rgba(230,232,240,.35)); }
+      .marca { display: flex; flex-direction: column; line-height: 1; }
+      .marca b {
+        font-family: "Cinzel", "Trajan Pro", "Cormorant Garamond", Georgia, serif;
+        font-size: 34px; letter-spacing: .14em;
+        background: linear-gradient(180deg, #fff 0%, #e6e8ed 35%, #9ea3ad 52%, #f4f5f8 72%, #b9bdc6 100%);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+      }
+      .marca span { margin-top: 8px; font-size: 12px; letter-spacing: .3em; color: var(--plata); text-transform: uppercase; }
+      .version {
+        margin-left: auto; padding: 6px 14px; font-size: 13px; font-weight: 700;
+        color: var(--tinta); background: linear-gradient(180deg, #fff, #c9ccd3); border-radius: 20px;
+      }
+
+      /* ---------- contenido ---------- */
+      main { max-width: 880px; margin: -60px auto 40px; padding: 0 24px; display: grid; gap: 18px; }
+      .tarjeta { background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(11,11,13,.08); padding: 22px 24px; }
+      .tarjeta h2 { margin: 0 0 4px; font-size: 16px; display: flex; align-items: center; gap: 10px; }
+      .tarjeta h2 svg { width: 20px; height: 20px; color: var(--tinta); }
+      .tarjeta > p.sub { margin: 0 0 16px; color: var(--gris); font-size: 13px; }
+      .fila { display: flex; align-items: center; gap: 16px; padding: 14px 0; border-top: 1px solid var(--linea); }
+      .fila:first-of-type { border-top: 0; }
+      .fila .texto { flex: 1; min-width: 0; }
+      .fila .texto b { display: block; font-size: 14px; }
+      .fila .texto small { display: block; color: var(--gris); font-size: 12.5px; }
+      .estado { font-size: 12px; font-weight: 700; color: var(--gris); }
+      .estado.si { color: var(--verde-osc); }
+
+      .rejilla { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+      @media (max-width: 760px) { .rejilla { grid-template-columns: 1fr; } }
+
+      .cifras { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+      .cifra { padding: 14px; background: var(--fondo); border-radius: 12px; text-align: center; }
+      .cifra b { display: block; font-size: 24px; font-variant-numeric: tabular-nums; }
+      .cifra span { font-size: 12px; color: var(--gris); }
+
+      /* interruptor */
+      .sw { position: relative; flex: none; width: 44px; height: 24px; }
+      .sw input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; z-index: 1; }
+      .sw i { position: absolute; inset: 0; background: #cfd3da; border-radius: 24px; transition: background .15s; }
+      .sw i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; background: #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .15s; }
+      .sw input:checked + i { background: var(--tinta); }
+      .sw input:checked + i::after { transform: translateX(20px); }
+      .sw input:focus-visible + i { outline: 2px solid var(--verde); outline-offset: 2px; }
+
+      input[type="number"] { width: 90px; padding: 8px 10px; font: 600 14px var(--ui); border: 1px solid #d8dde5; border-radius: 8px; text-align: center; }
+      button {
+        padding: 9px 16px; font: 700 13px var(--ui); color: #fff; background: var(--tinta);
+        border: 0; border-radius: 10px; cursor: pointer; white-space: nowrap;
+      }
+      button:hover { background: #26272c; }
+      button.suave { color: var(--tinta); background: var(--fondo); border: 1px solid #d8dde5; }
+      button.suave:hover { background: #e6e8ec; }
+      button.peligro { color: var(--rojo); background: #fff; border: 1px solid #f1c4c5; }
+      button.peligro:hover { background: #fdeeee; }
+
+      .aviso-nuevo {
+        display: none; gap: 14px; align-items: center; padding: 16px 18px;
+        background: #e3fbec; border: 1px solid var(--verde); border-radius: 12px;
+      }
+      .aviso-nuevo.visible { display: flex; }
+      .aviso-nuevo b { display: block; }
+      .aviso-nuevo code { padding: 1px 6px; background: #fff; border-radius: 4px; }
+      .nota { margin-top: 10px; font-size: 12.5px; color: var(--gris); }
+      .guardado { display: none; font-size: 12px; font-weight: 700; color: var(--verde-osc); }
+      .guardado.ver { display: inline; }
+      footer { text-align: center; color: #9aa0aa; font-size: 12px; padding-bottom: 30px; }
+    </style>
+  </head>
+  <body>
+    <header class="cabecera">
+      <div class="cabecera-dentro">
+        <img src="../icons/vyxen-128.png" alt="" />
+        <div class="marca"><b>VYXEN</b><span>Ajustes</span></div>
+        <span class="version" id="version"></span>
+      </div>
+    </header>
+
+    <main>
+      <!-- Actualizaciones -->
+      <section class="tarjeta">
+        <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>Actualizaciones</h2>
+        <p class="sub">Tus anuncios guardados, etiquetas y ajustes se conservan al actualizar.</p>
+        <div class="aviso-nuevo" id="avisoNuevo">
+          <div class="texto">
+            <b>Hay una version nueva: <span id="versionNueva"></span></b>
+            <span id="notasNueva"></span><br />
+            Abre la carpeta de la extension y ejecuta <code>actualizar.bat</code>. Se recarga sola en menos de un minuto.
+          </div>
+        </div>
+        <div class="fila">
+          <div class="texto"><b>Version instalada</b><small id="estadoActualizacion">Comprobando...</small></div>
+          <button class="suave" id="buscarActualizacion">Buscar ahora</button>
+        </div>
+      </section>
+
+      <div class="rejilla">
+        <!-- WhatsApp -->
+        <section class="tarjeta">
+          <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l2.1-5.5A8.5 8.5 0 1 1 21 11.5Z"/></svg>Boton de WhatsApp</h2>
+          <p class="sub">Como busca el numero del anunciante.</p>
+          <div class="fila">
+            <div class="texto">
+              <b>Buscar tambien en la web del anuncio</b>
+              <small>Encuentra mas numeros, pero pide permiso para leer cualquier sitio web. Sin el, todo lo demas funciona igual.</small>
+            </div>
+            <span class="estado" id="estadoPermisoLanding"></span>
+            <label class="sw"><input type="checkbox" id="permisoLanding" /><i></i></label>
+          </div>
+          <div class="fila">
+            <div class="texto">
+              <b>Mostrar el boton solo si el anuncio dice WhatsApp</b>
+              <small>Desactivado, tambien aparece en anuncios que llevan a WhatsApp con otro texto.</small>
+            </div>
+            <label class="sw"><input type="checkbox" data-pref="waSoloCta" /><i></i></label>
+          </div>
+          <div class="fila">
+            <div class="texto"><b>Olvidar los numeros encontrados</b><small>Vuelve a buscarlos desde cero la proxima vez.</small></div>
+            <button class="peligro" id="borrarNumeros">Olvidar</button>
+          </div>
+        </section>
+
+        <!-- Busqueda -->
+        <section class="tarjeta">
+          <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Busqueda</h2>
+          <p class="sub">Se aplica al abrir o recargar la Biblioteca.</p>
+          <div class="fila">
+            <div class="texto"><b>Buscar sola al abrir la Biblioteca</b><small>Empieza a cargar anuncios sin pulsar Buscar.</small></div>
+            <label class="sw"><input type="checkbox" data-pref="autoBusqueda" /><i></i></label>
+          </div>
+          <div class="fila">
+            <div class="texto"><b>Carga acelerada</b><small>Un pequeño vaiven en cada paso para pedir mas anuncios antes.</small></div>
+            <label class="sw"><input type="checkbox" data-pref="cargaAcelerada" /><i></i></label>
+          </div>
+          <div class="fila">
+            <div class="texto"><b>Aviso al terminar</b><small>Un sonido cuando la busqueda automatica acaba.</small></div>
+            <label class="sw"><input type="checkbox" data-pref="notificar" /><i></i></label>
+          </div>
+          <div class="fila">
+            <div class="texto"><b>Maximo de anuncios</b><small>Al llegar, la busqueda se detiene para no trabar el navegador.</small></div>
+            <input type="number" min="50" step="50" data-pref-num="maxAnuncios" />
+          </div>
+        </section>
+      </div>
+
+      <!-- Datos -->
+      <section class="tarjeta">
+        <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>Tus datos</h2>
+        <p class="sub">Guardados solo en este navegador.</p>
+        <div class="cifras">
+          <div class="cifra"><b id="nGuardados">0</b><span>Anuncios guardados</span></div>
+          <div class="cifra"><b id="nEtiquetas">0</b><span>Etiquetas</span></div>
+          <div class="cifra"><b id="nNumeros">0</b><span>WhatsApp encontrados</span></div>
+        </div>
+        <p class="nota">Para hacer o restaurar una copia de seguridad usa "Copia de seguridad" en el panel flotante de la Biblioteca.</p>
+      </section>
+
+      <!-- Panel -->
+      <section class="tarjeta">
+        <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>Panel y bandeja</h2>
+        <div class="fila">
+          <div class="texto"><b>Recolocar el panel y la bandeja</b><small>Si alguno quedo fuera de la pantalla, vuelven a su sitio.</small></div>
+          <button class="suave" id="recolocar">Recolocar</button><span class="guardado" id="okRecolocar">Hecho</span>
+        </div>
+        <div class="fila">
+          <div class="texto"><b>Accesos rapidos predeterminados</b><small>Devuelve la bandeja a sus 9 accesos originales.</small></div>
+          <button class="suave" id="accesosDef">Restablecer</button><span class="guardado" id="okAccesos">Hecho</span>
+        </div>
+      </section>
+    </main>
+    <footer>Los cambios se guardan al momento. Refresca la Biblioteca para verlos.</footer>
+    <script src="ajustes.js"></script>
+  </body>
+</html>
