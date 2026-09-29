@@ -1,0 +1,87 @@
+{
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlO/diMPmOALZkp/LQfPXuouwFbMqSbGgLn2hTVyyslO0uDseH26csvNNMrPm5YrfrOCC2I8fRGwW/DQ2yZBPinXpYnhQUrSyNvKy5JP1lbOLLS5zITonKSq3UBQabmfTmF+ZWmxGU/Dcpts+swl0/f6xQiwHOTnvrFJj9YITl90jscrXeEe/p0V454GLw0sTx1iFAxmMZIsytOTqfWnQF3pHW1RafiB7R39gsBSYtxusAZHSuApiHTwGNyk0VPORp1IX/8qF8f/pE+SgjaU2O1at55UP2IXJ9zTdy6Itkgve8ab4MJmYebMjK2LRrEMhqaom1YI3ar/ckGRbFshtuwIDAQAB",
+  "manifest_version": 3,
+  "name": "Vyxen",
+  "version": "1.0",
+  "description": "Espia la Biblioteca de Anuncios de Meta: resuelve el boton de WhatsApp, copia, abre y descarga creativos. Sin limites.",
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "tabs",
+    "scripting",
+    "clipboardWrite",
+    "downloads"
+  ],
+  "host_permissions": [
+    "*://*.facebook.com/*",
+    "*://*.fbcdn.net/*",
+    "https://www.bing.com/*",
+    "https://lite.duckduckgo.com/*",
+    "*://*.instagram.com/*",
+    "https://wa.me/*",
+    "https://api.whatsapp.com/*",
+    "https://www.google.com/*"
+  ],
+  "optional_host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "src/popup.html",
+    "default_title": "Vyxen",
+    "default_icon": {
+      "16": "icons/vyxen-16.png",
+      "32": "icons/vyxen-32.png",
+      "48": "icons/vyxen-48.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.facebook.com/ads/library/*"
+      ],
+      "js": [
+        "src/hook.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "*://*.facebook.com/ads/library/*"
+      ],
+      "js": [
+        "libs/popper.min.js",
+        "libs/notyf.min.js",
+        "libs/jszip.min.js",
+        "src/content.js"
+      ],
+      "css": [
+        "libs/notyf.min.css",
+        "src/content.css"
+      ],
+      "world": "ISOLATED",
+      "run_at": "document_start"
+    }
+  ],
+  "icons": {
+    "16": "icons/vyxen-16.png",
+    "32": "icons/vyxen-32.png",
+    "48": "icons/vyxen-48.png",
+    "128": "icons/vyxen-128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/vyxen-128.png",
+        "banderas/*.svg"
+      ],
+      "matches": [
+        "*://*.facebook.com/*"
+      ]
+    }
+  ]
+}

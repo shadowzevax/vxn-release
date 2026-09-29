@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        width: 260px;
+        margin: 0;
+        padding: 14px;
+        font: 13px system-ui, -apple-system, "Segoe UI", sans-serif;
+        color: #1c2b3a;
+        background: #f7f9fc;
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: 15px;
+      }
+      .fila {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 0;
+        border-bottom: 1px solid #e3e9f0;
+      }
+      .fila b {
+        font-variant-numeric: tabular-nums;
+      }
+      label {
+        display: block;
+        margin: 12px 0 4px;
+        font-size: 12px;
+        color: #55677d;
+      }
+      input {
+        width: 100%;
+        padding: 5px;
+        border: 1px solid #cfd9e4;
+        border-radius: 5px;
+        box-sizing: border-box;
+      }
+      button {
+        width: 100%;
+        margin-top: 12px;
+        padding: 9px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #fff;
+        background: #0b0b0d;
+        border: 0;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #26272c;
+      }
+      .secundario {
+        margin-top: 7px;
+        color: #2b3a4f;
+        background: #e7edf3;
+      }
+      .secundario:hover {
+        background: #d7e0ea;
+      }
+      .aviso {
+        margin-top: 10px;
+        font-size: 11.5px;
+        color: #55677d;
+        line-height: 1.4;
+      }
+      .opcional {
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid #e3e9f0;
+      }
+      .opcional-fila {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+      }
+      .opcional-fila input {
+        width: auto;
+        margin-top: 2px;
+      }
+      .opcional-texto {
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .opcional-texto b {
+        display: block;
+        margin-bottom: 2px;
+      }
+      .opcional-estado {
+        margin-top: 4px;
+        font-size: 11px;
+      }
+      .opcional-estado.concedido {
+        color: #12924e;
+      }
+          .marca { display:flex; align-items:center; gap:8px; margin:0 0 10px; }
+      .marca img { width:34px; height:34px; }
+      .marca span { font-family:"Cinzel","Trajan Pro","Cormorant Garamond",Georgia,serif; font-size:22px; font-weight:700; letter-spacing:.14em;
+        background:linear-gradient(180deg,#3a3d44 0%,#0b0b0d 48%,#6e727b 62%,#1a1b1f 100%); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    </style>
+  </head>
+  <body>
+    <h1 class="marca"><img src="../icons/vyxen-128.png" alt=""><span>VYXEN</span></h1>
+    <div class="fila"><span>Anuncios leidos</span><b id="total">0</b></div>
+    <div class="fila"><span>Con WhatsApp</span><b id="wa">0</b></div>
+
+    <label for="seg">Scroll automatico cada (segundos)</label>
+    <input id="seg" type="number" min="1" max="30" value="3" />
+
+    <button id="alternar">Iniciar busqueda automatica</button>
+    <button id="recolocar" class="secundario">Recolocar el panel</button>
+
+    <p class="aviso" id="nota">
+      Abre la Biblioteca de Anuncios para empezar.
+    </p>
+
+    <div class="opcional">
+      <div class="opcional-fila">
+        <input id="permisoLanding" type="checkbox" aria-label="Buscar tambien en la pagina de destino del anuncio" />
+        <span class="opcional-texto">
+          <b>Buscar tambien en la pagina de destino del anuncio</b>
+          Encuentra mas numeros de WhatsApp, pero pide permiso para leer cualquier sitio web. Si no se concede, todo lo demas sigue funcionando igual.
+        </span>
+      </div>
+      <p class="opcional-estado" id="estadoPermisoLanding"></p>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

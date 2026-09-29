@@ -1,0 +1,2083 @@
+﻿/*
+ * WA Ads Spy â€” capa de interfaz sobre la Biblioteca de Anuncios.
+ *
+ * Paleta verde sobre tinta azulada, del mismo registro que las herramientas de
+ * espionaje de anuncios que ya conoce el usuario: los controles no compiten con
+ * el azul de Meta y el verde marca todo lo accionable.
+ */
+
+/*
+ * Las variables van en :root y no en nuestros bloques: las barras cuelgan de
+ * <body>, fuera de las tarjetas, y ahi no heredaban nada â€” los botones salian
+ * sin color y con los iconos invisibles.
+ */
+:root {
+  --was-verde: #12d95e;
+  --was-verde-osc: #0fb54e;
+  --was-tinta: #0b0b0d;
+  --was-tinta-2: #26272c;
+  --was-gris: #6b7c90;
+  --was-linea: #d9e1ea;
+  /*
+   * Grises de los dos flotantes. El verde se queda para las tarjetas, que es
+   * donde seÃ±ala algo; aqui solo aparece como aro de acento.
+   */
+  --was-mando: #0b0b0d;
+  --was-mando-alto: #1c1c20;
+  --was-mando-bajo: #000;
+  --was-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* ===================== tarjeta ===================== */
+
+/*
+ * Hueco para la barra: se reserva el espacio con padding y la barra se apoya
+ * ahi sin tapar la etiqueta "Activo" ni el identificador.
+ *
+ * El fondo blanco es a proposito. `superficieDe()` intenta encontrar el
+ * descendiente que realmente pinta el fondo de la tarjeta, pero en algunas
+ * (los anuncios de video, sobre todo) no encuentra ninguno a tiempo y cae en
+ * la propia tarjeta, que es transparente. Sin este blanco, ese hueco dejaba
+ * ver el gris de la pagina por debajo y la barra quedaba flotando, separada
+ * de la tarjeta en vez de integrada en ella.
+ */
+.was-tarjeta {
+  position: relative !important;
+  overflow: visible !important;
+  background-color: #fff !important;
+  /* Hueco para las dos filas de la barra: acciones y datos. */
+  padding-top: 90px !important;
+}
+
+/*
+ * La barra es un hijo real de la tarjeta, no una capa aparte.
+ *
+ * Antes vivia en una capa colgada de <body>, sincronizada a mano con la
+ * posicion de cada tarjeta. Eso obligaba a recalcular esa posicion en cada
+ * scroll y a inventar reglas para pasar "por debajo" de la cabecera fija y de
+ * los desplegables de Meta, porque una capa aparte no comparte el contexto de
+ * apilamiento del resto de la tarjeta.
+ *
+ * Siendo un hijo real, la barra se apila exactamente igual que cualquier otro
+ * contenido de la tarjeta: pasa por debajo de la cabecera fija y de los
+ * desplegables sin ningun truco, y se mueve sola con el scroll, el orden y el
+ * filtrado porque viaja pegada a su tarjeta.
+ *
+ * Dos filas: acciones arriba, datos debajo. En una sola fila no caben siete
+ * botones mas las pastillas en una tarjeta de 330px.
+ */
+.was-barra {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 12px;
+  box-sizing: border-box;
+}
+
+.was-barra > * {
+  flex: none;
+}
+
+
+/*
+ * Varios anuncios comparten este creativo: el anunciante lo esta escalando.
+ * El halo se difumina hacia afuera en tres capas en lugar de ser un contorno
+ * duro, asi la tarjeta destaca sin recortarse del resto de la grilla.
+ */
+.was-escalando {
+  border-radius: 12px;
+  /* !important porque la tarjeta trae su propia sombra y, sin esto, gana la
+     suya y el halo no llega a verse. El color sale de Apariencia. */
+  box-shadow:
+    0 0 0 1.5px rgba(var(--was-halo-rgb, 18, 217, 94), 0.9),
+    0 0 10px 1px rgba(var(--was-halo-rgb, 18, 217, 94), 0.5),
+    0 0 26px 6px rgba(var(--was-halo-rgb, 18, 217, 94), 0.28),
+    0 0 52px 16px rgba(var(--was-halo-rgb, 18, 217, 94), 0.12) !important;
+}
+
+/* Anuncio parado: en rojo se distingue de un vistazo entre los activos. */
+.was-inactivo {
+  color: #d3272b !important;
+  font-weight: 700 !important;
+}
+
+/* El dato de cuantos anuncios reusan el creativo, resaltado sobre el gris. */
+.was-resalte {
+  color: var(--was-halo, #12924e) !important;
+  font-size: var(--was-copias-tam, 16px) !important;
+  font-weight: 800 !important;
+  line-height: 1.3 !important;
+}
+
+.was-filtrado {
+  opacity: 0.4;
+  filter: grayscale(0.8);
+}
+
+.was-oculto {
+  display: none !important;
+}
+
+/* --- insignia de dias --- */
+
+.was-dias {
+  flex: none;
+  order: 2;
+  margin-left: auto; /* al extremo derecho de su fila */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  font: 700 11.5px/1 var(--was-ui);
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: var(--was-tinta);
+  border-radius: 20px;
+  box-shadow: 0 3px 10px rgba(20, 35, 55, 0.28);
+  pointer-events: none;
+}
+
+.was-dias svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+
+/* --- pastillas de datos: nota, copiones, paises, evolucion --- */
+
+/* Segunda fila: la nota pegada a la izquierda y la fecha al extremo derecho. */
+.was-extras {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  order: 1;
+}
+
+/* En la fila de datos el ojo se achica al tamaño de las pastillas. */
+.was-extras .was-accion-btn {
+  width: 24px;
+  height: 24px;
+}
+
+.was-extras .was-accion-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.was-pastilla {
+  padding: 4px 9px;
+  font: 700 10.5px/1 var(--was-ui);
+  letter-spacing: 0.01em;
+  color: #fff;
+  background: var(--was-tinta);
+  border: 0;
+  border-radius: 20px;
+  white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(20, 35, 55, 0.26);
+  cursor: help;
+}
+
+/* Copiones es la unica pastilla que hace algo al hacer clic (abre la lista
+   de anunciantes): cursor y un leve resalte para que se note que es un
+   boton, no solo un dato mas. */
+.was-copiones {
+  cursor: pointer;
+  transition: filter 0.12s;
+}
+
+.was-copiones:hover {
+  filter: brightness(1.12);
+}
+
+/* La nota cambia de color por tramos: verde bueno, ambar medio, gris flojo. */
+.was-nota {
+  min-width: 26px;
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.was-nota-alta {
+  color: #06280f;
+  background: var(--was-verde);
+}
+
+.was-nota-media {
+  color: #3a2600;
+  background: #f0b429;
+}
+
+.was-nota-baja {
+  color: #dbe3ec;
+  background: var(--was-mando);
+}
+
+.was-copiones {
+  color: #2b1a00;
+  background: #ffb055;
+}
+
+.was-paises {
+  color: #e8eef5;
+  background: var(--was-mando);
+  text-transform: uppercase;
+}
+
+.was-evolucion {
+  color: #06280f;
+  background: #7ee2a0;
+}
+
+.was-limitada {
+  color: #fff;
+  background: #d3272b;
+}
+
+.was-gasto {
+  color: #06280f;
+  background: #a7f3c4;
+}
+
+.was-ficha-alerta .was-ficha-v {
+  color: #d3272b;
+  font-weight: 700;
+}
+
+/* --- estrella de seguimiento y ojo de visto --- */
+
+/*
+ * Seguido: amarillo con aro y un pequeño salto al marcarlo. El cambio de
+ * color por si solo se perdia entre tantos botones verdes.
+ */
+.was-accion-fav.was-fav-activo .was-accion-btn {
+  color: #3a2600;
+  background: #ffc733;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #ffc733, 0 3px 10px rgba(20, 35, 55, 0.3);
+  animation: was-marcado 0.42s ease;
+}
+
+.was-accion-fav.was-fav-activo:hover .was-accion-btn {
+  background: #f0ad0d;
+}
+
+@keyframes was-marcado {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .was-accion-fav.was-fav-activo .was-accion-btn {
+    animation: none;
+  }
+}
+
+.was-accion-ojo .was-accion-btn {
+  color: #eaf0f6;
+  background: var(--was-mando);
+}
+
+.was-accion-ojo:hover .was-accion-btn {
+  background: var(--was-mando-alto);
+}
+
+.was-accion-ojo.was-visto .was-accion-btn {
+  color: #3a2600;
+  background: #ffb055;
+}
+
+.was-accion-ojo.was-visto:hover .was-accion-btn {
+  background: #f09b33;
+}
+
+/* --- nombre del anunciante con ficha --- */
+
+.was-nombre {
+  cursor: pointer;
+  border-bottom: 1px dashed rgba(18, 217, 94, 0.7);
+}
+
+/* --- ficha del anunciante --- */
+
+.was-ficha {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+
+.was-ficha-fila {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 7px 9px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+.was-ficha-fila:nth-child(odd) {
+  background: #f2f5f8;
+}
+
+.was-ficha-k {
+  color: var(--was-gris);
+  white-space: nowrap;
+}
+
+.was-ficha-v {
+  font-weight: 700;
+  text-align: right;
+  word-break: break-word;
+}
+
+/* --- lista de anunciantes con la misma oferta --- */
+
+.was-lista-anunciantes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.was-fila-anunciante {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 9px;
+  border-radius: 8px;
+}
+
+.was-fila-anunciante:nth-child(odd) {
+  background: #f2f5f8;
+}
+
+.was-fila-anunciante-foto {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  object-fit: cover;
+  background: #e4e6eb;
+  border-radius: 50%;
+}
+
+.was-fila-anunciante-nombre {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.was-copias {
+  padding: 2px 7px;
+  margin-left: 1px;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #08321a;
+  background: var(--was-verde);
+  border-radius: 12px;
+}
+
+/* ===================== bandeja de acciones ===================== */
+
+.was-bandeja {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%; /* ocupa su fila; los datos bajan a la siguiente */
+  min-width: 0;
+}
+
+.was-accion {
+  position: relative;
+}
+
+.was-accion-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 31px;
+  height: 31px;
+  padding: 0;
+  color: #fff;
+  background: var(--was-verde);
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 3px 9px rgba(20, 35, 55, 0.24);
+  transition: background 0.14s, transform 0.14s;
+}
+
+.was-accion-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.was-accion:hover .was-accion-btn,
+.was-accion.was-abierto .was-accion-btn {
+  background: var(--was-verde-osc);
+  transform: translateY(-1px);
+}
+
+.was-accion-btn:focus-visible {
+  outline: 2px solid var(--was-tinta);
+  outline-offset: 2px;
+}
+
+/*
+ * Distintivo de la descarga multiple. Vive siempre en la barra (ver el
+ * comentario junto a donde se crea, en construirBandeja) pero solo se ve
+ * mientras el modo esta activo, para no cambiarle el ancho a la barra en el
+ * uso normal. Sin marcar es solo un circulo vacio; marcado, muestra el
+ * numero de orden — nunca un check, porque ese numero es literalmente el
+ * nombre con el que se va a guardar el archivo.
+ */
+.was-multi-distintivo {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--was-gris);
+  background: #fff;
+  border: 2px solid #cfd9e4;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.was-multi-activo .was-multi-distintivo {
+  display: flex;
+}
+
+.was-multi-distintivo:hover {
+  border-color: var(--was-mando);
+}
+
+.was-multi-marcado {
+  color: #fff;
+  background: var(--was-verde);
+  border-color: var(--was-verde);
+}
+
+/* --- globo con el nombre de la accion --- */
+
+/* Va debajo del boton: la bandeja se apoya en el borde superior de la tarjeta
+   y un globo hacia arriba quedaria fuera, encima del contenido de Meta. */
+.was-globo {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  z-index: 2147482600;
+  padding: 5px 10px;
+  font: 700 10.5px/1 var(--was-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #fff;
+  background: var(--was-tinta);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(20, 35, 55, 0.3);
+  /* Oculto con display:none, no con opacity: invisibles pero montados eran
+     ~7000 elementos posicionados con z-index y transform en una pagina con
+     1000 anuncios, y el navegador recalculaba sus capas en cada frame (era
+     la mitad del tiempo del hilo principal al hacer scroll). */
+  display: none;
+  transform: translate(-50%, 0);
+  pointer-events: none;
+}
+
+.was-globo::after {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  margin-left: -4px;
+  border: 4px solid transparent;
+  border-bottom-color: var(--was-tinta);
+}
+
+.was-accion:hover .was-globo,
+.was-accion-btn:focus-visible + .was-globo {
+  display: block;
+  animation: was-globo-entra 0.14s ease-out;
+}
+
+@keyframes was-globo-entra {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 4px);
+  }
+}
+
+.was-accion.was-abierto .was-globo {
+  display: none;
+}
+
+/* --- estado de carga --- */
+
+.was-cargando svg {
+  visibility: hidden;
+}
+
+.was-cargando::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: was-giro 0.7s linear infinite;
+}
+
+@keyframes was-giro {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .was-accion-btn,
+  .was-globo,
+  .was-toast {
+    transition: none;
+    animation: none;
+  }
+  .was-cargando::after {
+    animation-duration: 2s;
+  }
+}
+
+/* --- menu de cada accion --- */
+
+/* El menu cuelga de <body> y lo coloca Popper, por eso no lleva posicion propia. */
+.was-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 2147482500;
+  min-width: 212px;
+  background: transparent;
+}
+
+.was-item {
+  display: block;
+  width: 100%;
+  padding: 9px 13px;
+  font: 600 12.5px var(--was-ui);
+  text-align: left;
+  color: #fff;
+  background: var(--was-tinta-2);
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(20, 35, 55, 0.25);
+}
+
+.was-item:hover,
+.was-item:focus-visible {
+  background: var(--was-verde-osc);
+  outline: none;
+}
+
+/* ===================== panel flotante ===================== */
+
+.was-panel-flotante {
+  position: fixed;
+  top: 92px;
+  right: 22px;
+  z-index: 2147483000;
+  /* Nunca mas ancho que la ventana, para que quepa en pantallas estrechas. */
+  width: min(266px, calc(100vw - 28px));
+  font-family: var(--was-ui);
+  color: var(--was-tinta);
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 16px 44px rgba(20, 35, 55, 0.3);
+  overflow: hidden;
+}
+
+.was-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  color: #fff;
+  background: var(--was-tinta);
+  cursor: move;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.was-marca {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* El logo es negro/plateado: sobre la cabecera oscura necesita un disco claro. */
+.was-marca-logo {
+  width: 30px;
+  height: 30px;
+  filter: grayscale(1) brightness(2.4) contrast(1.15) drop-shadow(0 0 4px rgba(230, 232, 240, 0.35));
+}
+
+.was-marca-texto {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+
+.was-marca-texto b {
+  font-family: "Cinzel", "Trajan Pro", "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  background: linear-gradient(180deg, #ffffff 0%, #e6e8ed 35%, #9ea3ad 52%, #f4f5f8 72%, #b9bdc6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.was-marca-texto i {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+  font-style: normal;
+  font-size: 6.5px;
+  letter-spacing: 0.1em;
+  color: #b9bdc6;
+}
+
+.was-marca-texto s {
+  width: 12px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #b9bdc6);
+  text-decoration: none;
+}
+
+.was-plegar-logo {
+  width: 40px;
+  height: 40px;
+  display: block;
+  filter: grayscale(1) brightness(2.4) contrast(1.15) drop-shadow(0 0 5px rgba(230, 232, 240, 0.4));
+}
+
+.was-plegar {
+  width: 24px;
+  height: 24px;
+  font-size: 14px;
+  color: #cfdae6;
+  background: rgba(255, 255, 255, 0.12);
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.was-plegar:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/*
+ * Recogido: disco gris con un aro verde fino. El aro basta para reconocer la
+ * extension de un vistazo sin competir con los controles de Meta, y el gris
+ * oscuro da contraste de sobra al icono blanco (por encima de 7:1).
+ */
+.was-plegado {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--was-mando);
+  box-shadow:
+    0 0 0 1.5px #c9ccd3,
+    0 0 0 3px #0b0b0d,
+    0 6px 18px rgba(0, 0, 0, 0.45);
+  transition: background 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.was-plegado .was-cab {
+  background: none;
+  border: 0;
+}
+
+.was-plegado:hover {
+  background: var(--was-mando-alto);
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 0 1.5px #f1f2f5,
+    0 0 0 3px #0b0b0d,
+    0 0 16px rgba(220, 224, 232, 0.35),
+    0 10px 24px rgba(0, 0, 0, 0.5);
+}
+
+.was-plegado .was-plegar {
+  color: #fff;
+}
+
+.was-plegado .was-plegar:hover {
+  background: none;
+}
+
+.was-plegado .was-cuerpo,
+.was-plegado .was-marca {
+  display: none;
+}
+
+.was-plegado .was-cab {
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0;
+  border: 0;
+}
+
+/* El boton ocupa todo el disco y centra el icono por sus dos ejes: sin flex,
+   el svg se apoyaba en la linea base del texto y quedaba descolocado. */
+.was-plegado .was-plegar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border-radius: 50%;
+  background: none;
+}
+
+.was-plegado .was-plegar svg {
+  display: block;
+}
+
+.was-plegado .was-plegar svg {
+  width: 26px;
+  height: 26px;
+}
+
+/* Recogido se arrastra desde el propio circulo. */
+.was-plegado .was-cab {
+  cursor: move;
+}
+
+.was-cuerpo {
+  padding: 14px;
+}
+
+.was-deslizador {
+  margin-bottom: 14px;
+}
+
+.was-deslizador label,
+.was-campo label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--was-tinta);
+}
+
+.was-fila {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.was-fila input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--was-mando);
+}
+
+.was-num {
+  width: 56px;
+  padding: 6px 4px;
+  font: 600 12.5px var(--was-ui);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--was-tinta);
+  background: #fff;
+  border: 1px solid var(--was-linea);
+  border-radius: 7px;
+}
+
+.was-unidad {
+  font-size: 11.5px;
+  color: var(--was-gris);
+}
+
+.was-enlace svg,
+.was-plegar svg,
+.was-redondo svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+.was-redondo svg {
+  width: 17px;
+  height: 17px;
+}
+
+.was-plegar svg {
+  width: 13px;
+  height: 13px;
+}
+
+.was-enlace {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 0;
+  font: 600 12.5px var(--was-ui);
+  text-align: left;
+  color: var(--was-tinta);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.was-enlace:hover {
+  color: var(--was-verde-osc);
+}
+
+.was-switch-fila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.was-switch {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  padding: 0;
+  background: #c9d3de;
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.16s;
+}
+
+.was-switch i {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  transition: left 0.16s;
+}
+
+.was-switch.was-on {
+  background: var(--was-mando);
+}
+
+.was-switch.was-on i {
+  left: 18px;
+}
+
+.was-switch:focus-visible {
+  outline: 2px solid var(--was-mando);
+  outline-offset: 2px;
+}
+
+.was-resumen {
+  margin: 12px 0 0;
+  font-size: 11.5px;
+  text-align: center;
+  color: var(--was-gris);
+}
+
+.was-primario {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px;
+  font: 800 12.5px var(--was-ui);
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: var(--was-tinta);
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.was-primario:hover {
+  background: #22303f;
+}
+
+/* ===================== modales ===================== */
+
+.was-modal-fondo {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(20, 35, 55, 0.5);
+}
+
+.was-modal {
+  width: 100%;
+  /* Si el contenido no cabe en el panel, se desplaza dentro del cuadro en vez
+     de quedar cortado por abajo. */
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 14px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(20, 35, 55, 0.32);
+}
+
+.was-modal-fondo {
+  align-items: stretch;
+}
+
+/* Con un cuadro abierto el panel se estira para que quepa el contenido. */
+.was-con-modal .was-cuerpo {
+  min-height: min(460px, 70vh);
+}
+
+.was-modal-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 13px;
+}
+
+.was-modal-cab h3 {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.was-cerrar {
+  font-size: 20px;
+  line-height: 1;
+  color: var(--was-gris);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.was-cerrar:hover {
+  color: var(--was-tinta);
+}
+
+.was-campo {
+  margin-bottom: 13px;
+}
+
+.was-campo select {
+  width: 100%;
+  padding: 8px;
+  font: 500 12.5px var(--was-ui);
+  color: var(--was-tinta);
+  background: #fff;
+  border: 1px solid var(--was-linea);
+  border-radius: 7px;
+}
+
+.was-color {
+  flex: none;
+  width: 48px;
+  height: 38px;
+  padding: 3px;
+  background: #fff;
+  border: 1px solid var(--was-linea);
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+/* El codigo completo, para copiarlo y pegarlo de una pieza. */
+.was-hex {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  padding: 0 10px;
+  font-family: var(--was-mono, ui-monospace, Consolas, monospace);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--was-tinta);
+  background: #fff;
+  border: 1px solid var(--was-linea);
+  border-radius: 7px;
+  box-sizing: border-box;
+}
+
+.was-hex:focus {
+  border-color: var(--was-mando);
+  outline: none;
+}
+
+/* ===================== bandeja rapida ===================== */
+
+.was-rapida {
+  position: fixed;
+  right: 26px;
+  bottom: 26px;
+  z-index: 2147482000;
+  display: flex;
+  gap: 9px;
+  padding: 10px;
+  background: var(--was-tinta);
+  border-radius: 40px;
+  box-shadow: 0 14px 36px rgba(20, 35, 55, 0.38);
+  cursor: move;
+}
+
+/* Tope de anuncios alcanzado: se recuerda todo el tiempo, no solo al aviso
+   inicial, porque la Biblioteca sigue cargando anuncios que ya no se decoran. */
+.was-rapida.was-en-tope {
+  box-shadow: 0 0 0 2px #d3272b, 0 14px 36px rgba(20, 35, 55, 0.38);
+}
+
+/* Recogida: un unico circulo, sin la barra oscura alrededor. */
+.was-rapida.was-plegada {
+  gap: 0;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.was-rapida.was-plegada > :not(.was-alternar-rapida):not(.was-descarga-multi) {
+  display: none;
+}
+
+/*
+ * El boton de descarga multiple es la excepcion: con la bandeja recogida
+ * (solo el circulo de abrir/cerrar a la vista) seguia habiendo anuncios
+ * marcados esperando, y sin este boton no habia forma de descargarlos sin
+ * antes desplegar la bandeja entera. Se le da su propia sombra, porque al
+ * estar recogida la bandeja pierde el fondo oscuro que normalmente agrupa
+ * a todos sus botones (ver ".was-rapida.was-plegada" arriba).
+ */
+.was-rapida.was-plegada .was-descarga-multi {
+  display: flex;
+  margin-right: 9px;
+  box-shadow: 0 8px 22px rgba(20, 35, 55, 0.35);
+}
+
+.was-alternar-rapida {
+  box-shadow: 0 8px 22px rgba(20, 35, 55, 0.35);
+}
+
+.was-alternar-rapida svg {
+  width: 17px;
+  height: 17px;
+}
+
+.was-redondo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  font-size: 15px;
+  color: #fff;
+  background: var(--was-mando);
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.14s;
+}
+
+.was-redondo:hover {
+  background: var(--was-mando-alto);
+}
+
+/* Apagado: mas hundido que el resto, para que se note a simple vista. */
+.was-redondo.was-apagado {
+  color: #b9c4d1;
+  background: var(--was-mando-bajo);
+}
+
+.was-redondo.was-apagado:hover {
+  color: #fff;
+  background: var(--was-mando);
+}
+
+/*
+ * Boton de descarga multiple, en la bandeja rapida. Verde en vez del gris
+ * del resto de la bandeja: es una accion que sale de lo normal (descargar,
+ * no navegar), y el mismo verde que ya usa el resto de la extension para
+ * "seguir adelante" (el boton BUSCAR, el halo de creativos escalando).
+ */
+.was-descarga-multi {
+  position: relative;
+  background: var(--was-verde);
+}
+
+.was-descarga-multi:hover {
+  background: var(--was-verde-osc);
+}
+
+.was-descarga-multi svg {
+  width: 18px;
+  height: 18px;
+}
+
+.was-descarga-multi-num {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #fff;
+  background: #d3272b;
+  border: 2px solid #fff;
+  border-radius: 20px;
+  line-height: 14px;
+  text-align: center;
+}
+
+/* Pastilla, no circulo: con recuentos largos (114/114) el texto se salia. */
+.was-contador {
+  width: auto;
+  min-width: 42px;
+  max-width: 132px;
+  padding: 0 13px;
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  border-radius: 21px;
+  cursor: default;
+}
+
+/*
+ * Recogida, la bandeja enseÃ±a el recuento. Con muchos digitos (256/256) un
+ * circulo se queda corto, asi que crece a lo ancho y se vuelve pastilla.
+ * Va despues de .was-redondo a proposito: si no, gana el ancho fijo de aquella.
+ */
+.was-rapida .was-mini-contador {
+  width: auto;
+  min-width: 44px;
+  max-width: 132px;
+  height: 44px;
+  padding: 0 14px;
+  box-shadow:
+    0 0 0 1.5px #c9ccd3,
+    0 0 0 3px #0b0b0d,
+    0 6px 18px rgba(0, 0, 0, 0.45);
+  font-size: 12.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 22px;
+}
+
+/* ===================== cuadros sueltos ===================== */
+
+.was-suelto-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(20, 35, 55, 0.5);
+}
+
+.was-suelto {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: min(300px, calc(100vw - 40px));
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 14px;
+  font-family: var(--was-ui);
+  color: var(--was-tinta);
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(20, 35, 55, 0.35);
+}
+
+.was-suelto .was-item {
+  color: #fff;
+  background: var(--was-mando);
+}
+
+.was-suelto .was-item:hover {
+  background: var(--was-mando-alto);
+}
+
+.was-suelto-ficha {
+  width: min(340px, calc(100vw - 40px));
+}
+
+.was-secundario {
+  display: block;
+  width: 100%;
+  margin-top: 7px;
+  padding: 10px;
+  font: 700 12px var(--was-ui);
+  letter-spacing: 0.06em;
+  color: var(--was-tinta);
+  background: #e7edf3;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.was-secundario:hover {
+  background: #d7e0ea;
+}
+
+.was-ficha-real .was-ficha-v {
+  color: #12924e;
+}
+
+.was-elegible {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.was-elegible:hover {
+  background: #eef3f8;
+}
+
+/* `flex: none` para que la casilla no se encoja cuando el texto de al lado
+   ocupa dos lineas: sin esto, una salia mas pequeña que la otra. */
+.was-elegible input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--was-mando);
+}
+
+/* ===================== ayuda en linea ===================== */
+
+.was-texto {
+  width: 100%;
+  padding: 9px 10px;
+  font: 500 13px var(--was-ui);
+  color: var(--was-tinta);
+  background: #fff;
+  border: 1px solid var(--was-linea);
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.was-texto:focus {
+  border-color: var(--was-mando);
+  outline: none;
+}
+
+.was-pista {
+  position: relative;
+  margin-left: 6px;
+  font-size: 12px;
+  color: var(--was-gris);
+  cursor: help;
+}
+
+.was-pista::after {
+  content: attr(data-ayuda);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: 80;
+  width: 210px;
+  padding: 8px 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #fff;
+  background: #1c2734;
+  border-radius: 7px;
+  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.14s;
+}
+
+.was-pista:hover::after,
+.was-pista:focus::after {
+  opacity: 1;
+}
+
+/* ===================== vista de guardados ===================== */
+
+/*
+ * Ocupa el area de resultados de la Biblioteca. Va por encima de su contenido
+ * porque la busqueda que se abre no devuelve nada: ese hueco es el que
+ * aprovechamos para pintar los anuncios seguidos.
+ */
+.was-mural {
+  position: fixed;
+  top: 128px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* Por debajo del panel y de la bandeja rapida: cubre el area de resultados,
+     no los mandos de la extension. */
+  z-index: 2147481500;
+  overflow-y: auto;
+  /*
+   * Sin esto, al filtrar (por ejemplo arrastrando un slider) la cantidad de
+   * tarjetas visibles cambia, la barra de scroll aparece o desaparece, y ese
+   * puñado de pixeles que gana o pierde el ancho disponible hace que toda la
+   * rejilla se reacomode: se ve como si la ventana "saltara" aunque el
+   * scroll en si no se haya movido. Reservar el hueco siempre evita el salto.
+   */
+  scrollbar-gutter: stable;
+  padding: 18px 22px 40px;
+  font-family: var(--was-ui);
+  color: var(--was-tinta);
+  background: #f0f2f5;
+}
+
+.was-mural-cab {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.was-mural-cab h2 {
+  margin: 0;
+  font-size: 19px;
+}
+
+.was-mural-cuenta {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--was-tinta);
+  border-radius: 20px;
+}
+
+.was-mural-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.was-mini-cerrar {
+  color: var(--was-tinta) !important;
+  background: #fff !important;
+  border: 1px solid #c9ced6 !important;
+}
+
+.was-mini-cerrar:hover {
+  background: #f0f2f5 !important;
+}
+
+.was-mural-vacio {
+  font-size: 13.5px;
+  color: var(--was-gris);
+}
+
+/* ===================== busqueda y filtros del mural ===================== */
+
+.was-mural-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 10px;
+  padding: 16px 18px 14px;
+  margin-bottom: 16px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(20, 35, 55, 0.12);
+}
+
+.was-mural-buscar {
+  flex: 1 1 220px;
+  min-width: 180px;
+  padding: 9px 12px;
+  font: 13px var(--was-ui);
+  color: var(--was-tinta);
+  background: #f0f2f5;
+  border: 1px solid #d8dee6;
+  border-radius: 7px;
+}
+
+.was-mural-buscar:focus {
+  outline: 2px solid var(--was-verde);
+  outline-offset: -1px;
+}
+
+.was-mural-select {
+  padding: 9px 10px;
+  font: 12.5px var(--was-ui);
+  color: var(--was-tinta);
+  background: #f0f2f5;
+  border: 1px solid #d8dee6;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+/* Los dos deslizadores lado a lado (uno sobre otro en pantallas estrechas).
+   Cada uno conserva una pista ancha: con 150px, arrastrar en un rango grande
+   avanzaba muchas unidades por pixel y el numero "saltaba". */
+.was-mural-sliders {
+  flex: 1 1 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px 28px;
+  padding: 12px 0 2px;
+  border-top: 1px solid #eceff3;
+  margin-top: 4px;
+}
+
+.was-mural-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.was-mural-filtros-pie {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eceff3;
+}
+
+.was-mini-suave {
+  color: var(--was-tinta) !important;
+  background: #f0f2f5 !important;
+  border: 1px solid #d8dee6 !important;
+}
+
+.was-mini-suave:hover {
+  background: #e4e7ec !important;
+}
+
+.was-mural-slider-fila {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.was-mural-slider-fila .was-mural-rango {
+  flex: 1;
+}
+
+.was-mural-slider-num {
+  width: 52px;
+  padding: 3px 5px;
+  font: 12px var(--was-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--was-tinta);
+  background: #fff;
+  border: 1px solid #d8dee6;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.was-mural-slider-cab {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4a5361;
+}
+
+.was-mural-slider-valor {
+  font-weight: 700;
+  color: var(--was-tinta);
+  font-variant-numeric: tabular-nums;
+}
+
+.was-mural-rango {
+  width: 100%;
+  height: 4px;
+  accent-color: var(--was-tinta);
+}
+
+.was-mural-filtro-cuenta {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--was-gris);
+  white-space: nowrap;
+}
+
+/* Ocultas por el filtro: aparte de "was-oculto" (que ya usa la grilla
+   principal), para no mezclar los dos sistemas de filtrado. */
+.was-mural-oculto {
+  display: none !important;
+}
+
+.was-mural-rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 14px;
+}
+
+.was-mural-tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(20, 35, 55, 0.16);
+}
+
+.was-mural-tarjeta-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.was-mural-estado {
+  font-size: 12px;
+  font-weight: 700;
+  color: #12924e;
+}
+
+/* La campaña termino normal: el anunciante sigue existiendo. */
+.was-mural-retirado {
+  color: #8a6d1a !important;
+}
+
+/*
+ * Ni el anuncio ni el anunciante existen ya. Con fondo, no solo color de
+ * texto: es el caso que mas le importa ver al usuario de un vistazo, y un
+ * color de texto solo se pierde entre el resto de pastillas de la cabecera.
+ */
+.was-mural-baneado {
+  color: #7a1113 !important;
+  background: rgba(211, 39, 43, 0.14);
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.was-mural-datos {
+  font-size: 11.5px;
+  color: var(--was-gris);
+  font-variant-numeric: tabular-nums;
+}
+
+.was-mural-nombre {
+  font-size: 13px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.was-mural-etiquetas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+
+/* Vacia (solo el "+ etiqueta"), no se distingue visualmente de una tarjeta
+   sin esta funcion — es justo el punto, que sea opcional de verdad. */
+.was-etiqueta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px 2px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #2b3a4f;
+  background: #e7edf3;
+  border-radius: 20px;
+}
+
+.was-etiqueta-quitar {
+  padding: 0 2px;
+  font-size: 12px;
+  line-height: 1;
+  color: #7c8ba1;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.was-etiqueta-quitar:hover {
+  color: #d3272b;
+}
+
+.was-etiqueta-mas {
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #55677d;
+  background: none;
+  border: 1px dashed #cfd9e4;
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+.was-etiqueta-mas:hover {
+  color: var(--was-tinta);
+  border-color: var(--was-mando);
+}
+
+.was-mural-novedad {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: 6px;
+  color: #06280f;
+  background: #a7f3c4;
+  align-self: flex-start;
+}
+
+.was-mural-novedad-mala {
+  color: #fff;
+  background: #d3272b;
+}
+
+.was-mural-img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  background: #e4e6eb;
+  border-radius: 8px;
+}
+
+.was-mural-img-rota {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8px;
+  font-size: 12px;
+  color: #65676b;
+  line-height: 1.3;
+}
+
+.was-mural-texto {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #1c1e21;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.was-mural-pie {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: auto;
+}
+
+.was-mini-wa {
+  color: #05230f;
+  background: var(--was-verde);
+}
+
+.was-mini-wa:hover {
+  background: var(--was-verde-osc);
+}
+
+/* --- botones pequeños, usados por la vista de guardados --- */
+
+.was-mini {
+  padding: 5px 9px;
+  font: 700 11px var(--was-ui);
+  color: #fff;
+  background: var(--was-mando);
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.was-mini:hover {
+  background: var(--was-mando-alto);
+}
+
+.was-mini-quitar {
+  color: #7d2b2b;
+  background: #f3d9d9;
+}
+
+/* Mientras "Comprobar estado" esta corriendo, se convierte en "Detener". */
+.was-mini-detener {
+  background: #7d2b2b;
+}
+
+.was-mini-detener:hover {
+  background: #9c3737;
+}
+
+.was-mini-quitar:hover {
+  color: #fff;
+  background: #c0392b;
+}
+
+/* ===================== sugerencias ===================== */
+
+.was-vacio {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--was-gris);
+}
+
+.was-sugerencias {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.was-sugerencia {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 11px;
+  font: 600 12.5px var(--was-ui);
+  text-align: left;
+  color: var(--was-tinta);
+  background: #f2f5f8;
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.was-sugerencia:hover {
+  color: #fff;
+  background: var(--was-verde-osc);
+}
+
+.was-sugerencia b {
+  flex: none;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: #08321a;
+  background: var(--was-verde);
+  border-radius: 10px;
+}
+
+/* ===================== avisos ===================== */
+
+/* Notyf pinta sus propios avisos; solo ajustamos que no tape la bandeja. */
+.notyf {
+  z-index: 2147483647 !important;
+}
+
+.notyf__toast {
+  font-family: var(--was-ui, system-ui);
+  font-weight: 600;
+  border-radius: 9px !important;
+}
+
+.was-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  z-index: 2147483647;
+  padding: 12px 18px;
+  font: 600 13px var(--was-ui);
+  color: #fff;
+  background: var(--was-tinta);
+  border-left: 4px solid var(--was-verde);
+  border-radius: 9px;
+  box-shadow: 0 10px 30px rgba(20, 35, 55, 0.42);
+  opacity: 0;
+  transform: translate(-50%, 10px);
+  transition: opacity 0.22s, transform 0.22s;
+}
+
+.was-toast.was-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.was-toast-error {
+  border-left-color: #e5484d;
+}
+
+/* ===================== pantallas estrechas ===================== */
+
+@media (max-width: 700px) {
+  .was-panel-flotante {
+    top: 76px;
+    right: 14px;
+  }
+
+  .was-plegado {
+    width: 48px;
+    height: 48px;
+  }
+
+  .was-plegado .was-plegar svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .was-rapida {
+    right: 14px;
+    bottom: 14px;
+    gap: 6px;
+    padding: 7px;
+  }
+
+  .was-redondo {
+    width: 38px;
+    height: 38px;
+  }
+
+  .was-rapida .was-mini-contador {
+    height: 40px;
+    min-width: 40px;
+    max-width: 104px;
+    padding: 0 11px;
+    font-size: 11.5px;
+  }
+
+  .was-cuerpo {
+    padding: 12px;
+  }
+}
+
+
+/*
+ * Texto de ayuda dentro de los cuadros de configuracion. No confundir con
+ * `.was-nota`, que es la pastilla de puntuacion de la tarjeta.
+ */
+.was-ayuda {
+  margin: -2px 0 12px;
+  padding-left: 2px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #8fa3ba;
+}
+
+/* El logo es una <img>: sin esto el navegador la arrastra como imagen
+   suelta en vez de dejar que se arrastre el panel. */
+.was-plegar-logo,
+.was-marca-logo {
+  -webkit-user-drag: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+
+/* ===================== elegir etiquetas ===================== */
+
+.was-suelto-etiquetas {
+  width: min(360px, calc(100vw - 40px));
+  gap: 10px;
+}
+
+.was-etiquetas-ayuda {
+  font-size: 12px;
+  color: var(--was-gris);
+}
+
+.was-etiquetas-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.was-etiquetas-vacio {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--was-gris);
+}
+
+.was-etiqueta-opcion {
+  padding: 5px 11px;
+  font: 600 12.5px/1.2 var(--was-ui);
+  color: var(--was-tinta);
+  background: #f2f3f5;
+  border: 1px solid #d4d7dd;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.was-etiqueta-opcion:hover {
+  border-color: #9ea3ad;
+}
+
+.was-etiqueta-opcion.was-elegida {
+  color: #fff;
+  background: var(--was-tinta);
+  border-color: var(--was-tinta);
+}
+
+.was-etiqueta-opcion.was-elegida::before {
+  content: "\2713  ";
+}
+
+.was-etiquetas-nueva {
+  display: flex;
+  gap: 6px;
+}
+
+.was-etiquetas-nueva .was-texto {
+  flex: 1;
+  min-width: 0;
+}
+
+.was-etiquetas-pie {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.was-etiquetas-pie .was-primario {
+  flex: 1;
+  margin: 0;
+}
+
+/* ===================== boton de WhatsApp: estados ===================== */
+
+/* Buscando: cuadrado de "detener" con un anillo girando alrededor. */
+.was-wa-buscando {
+  position: relative;
+}
+
+.was-wa-buscando::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border: 2.5px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #0b0b0d;
+  border-radius: 50%;
+  animation: was-giro 0.8s linear infinite;
+  pointer-events: none;
+}
+
+.was-mini.was-wa-buscando::after {
+  border-radius: 8px;
+}
+
+/* Sin numero: cuenta atras en el propio boton. */
+.was-wa-espera {
+  opacity: 0.85;
+  filter: grayscale(0.4);
+}
+
+.was-wa-cuenta {
+  font: 800 14px/1 var(--was-ui);
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+
+.was-mini .was-wa-cuenta {
+  font-size: 12px;
+}
+
+/* Manteniendo presionado: un anillo que se completa en 3 segundos. */
+.was-wa-presionando {
+  position: relative;
+}
+
+.was-wa-presionando::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: conic-gradient(#0b0b0d var(--was-avance, 0%), transparent 0);
+  -webkit-mask: radial-gradient(circle, transparent 62%, #000 64%);
+  mask: radial-gradient(circle, transparent 62%, #000 64%);
+  animation: was-llenar 3s linear forwards;
+  pointer-events: none;
+}
+
+@property --was-avance {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+
+@keyframes was-llenar {
+  to {
+    --was-avance: 100%;
+  }
+}
+
+/* ===================== boton de WhatsApp: resultado guardado ===================== */
+
+/* Encontrado: la bandera del pais del numero, recortada en circulo, ocupa
+   el hueco de la burbuja donde iba el auricular. */
+.was-wa-bandera {
+  position: relative;
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.was-wa-bandera svg {
+  width: 100%;
+  height: 100%;
+}
+
+.was-wa-bandera img {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  object-fit: cover;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
