@@ -51,3 +51,18 @@ Los resultados se guardan en `chrome.storage.local` (no en memoria: el service w
 - Comentarios en español, explicando el *porqué* de una decisión no obvia, nunca el *qué* (los nombres ya lo dicen).
 - Sin punto y coma faltante, sin abreviaturas raras — el código está pensado para que otra persona (o la misma, meses después) entienda la razón de cada bloque sin tener que rehacer la investigación.
 - `content.js`/`hook.js`/`background.js` usan finales de línea CRLF de forma consistente; si se edita con un script en vez de con el editor, hay que respetarlo o los diffs salen ilegibles.
+
+
+## Instalar (una sola vez)
+1. Descarga la carpeta de la extension y guardala en un sitio fijo (no la muevas despues).
+2. Abre `chrome://extensions` (o `brave://extensions`) y activa el **Modo desarrollador**.
+3. Pulsa **Cargar descomprimida** y elige esa carpeta.
+
+## Actualizar
+Cuando el icono de la extension muestre una flecha verde, hay version nueva:
+1. Abre la carpeta de la extension y ejecuta **actualizar.bat**.
+2. Espera el mensaje "Listo". La extension se recarga sola en menos de un minuto.
+3. Refresca las pestañas de la Biblioteca de anuncios.
+
+Tus anuncios guardados, etiquetas y ajustes no se pierden al actualizar.
+**No quites la extension** (boton "Quitar"): eso si borra tus datos.

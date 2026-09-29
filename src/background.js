@@ -1,3 +1,4 @@
+/*⁠​‌​‌​‌‌​​‌‌‌‌​​‌​‌‌‌‌​​​​‌‌​​‌​‌​‌‌​‌‌‌​​​‌​​​​​​​‌​‌​​​​‌‌​​​‌‌​​‌​‌​​‌​​‌​​​​​​​‌‌​​‌​​​‌‌​​​​​​‌‌​​‌​​​‌‌​‌‌​​​‌​​​​​​‌​‌​​‌​​‌‌​‌​​‌​‌‌‌‌​​​​‌‌​‌​​‌​‌‌‌​‌​‌​‌‌‌​​‌‌​​‌​‌‌‌​​​‌​​​​​​‌​‌​‌​​​‌‌​‌‌‌‌​‌‌​​‌​​​‌‌​‌‌‌‌​‌‌‌​​‌‌​​‌​​​​​​‌‌​‌‌​​​‌‌​‌‌‌‌​‌‌‌​​‌‌​​‌​​​​​​‌‌​​‌​​​‌‌​​‌​‌​‌‌‌​​‌​​‌‌​​‌​‌​‌‌​​​‌‌​‌‌​‌​​​​‌‌​‌‌‌‌​‌‌‌​​‌‌​​‌​​​​​​‌‌‌​​‌​​‌‌​​‌​‌​‌‌‌​​‌‌​‌‌​​‌​‌​‌‌‌​​‌​​‌‌‌​‌‌​​‌‌​​​​‌​‌‌​​‌​​​‌‌​‌‌‌‌​‌‌‌​​‌‌​​‌​‌‌‌​​​‌​​​​​​‌​‌​​​​​‌‌‌​​‌​​‌‌​‌‌‌‌​‌‌​‌​​​​‌‌​‌​​‌​‌‌​​​‌​​‌‌​‌​​‌​‌‌​​‌​​​‌‌​​​​‌​​‌​​​​​​‌‌​‌‌​​​‌‌​​​​‌​​‌​​​​​​‌‌​‌‌​‌​‌‌​‌‌‌‌​‌‌​​‌​​​‌‌​‌​​‌​‌‌​​‌‌​​‌‌​‌​​‌​‌‌​​​‌‌​‌‌​​​​‌​‌‌​​​‌‌​‌‌​‌​​‌​‌‌​‌‌‌‌​‌‌​‌‌‌​​​‌​‌‌​​​​‌​​​​​​‌‌​​​‌‌​‌‌​‌‌‌‌​‌‌‌​​​​​‌‌​‌​​‌​‌‌​​​​‌​​‌​​​​​​‌‌​‌‌‌‌​​‌​​​​​​‌‌‌​​‌​​‌‌​​‌​‌​‌‌​​‌​​​‌‌​‌​​‌​‌‌‌​​‌‌​‌‌‌​‌​​​‌‌‌​​‌​​‌‌​‌​​‌​‌‌​​​‌​​‌‌‌​‌​‌​‌‌​​​‌‌​‌‌​‌​​‌​‌‌​‌‌‌‌​‌‌​‌‌‌​​​‌​​​​​​‌‌‌​​‌‌​‌‌​‌​​‌​‌‌​‌‌‌​​​‌​​​​​​‌‌​​​​‌​‌‌‌​‌​‌​‌‌‌​‌​​​‌‌​‌‌‌‌​‌‌‌​​‌​​‌‌​‌​​‌​‌‌‌‌​‌​​‌‌​​​​‌​‌‌​​​‌‌​‌‌​‌​​‌​‌‌​‌‌‌‌​‌‌​‌‌‌​​​‌​​​​​​‌‌​​‌​‌​‌‌‌​​‌‌​‌‌​​​‌‌​‌‌‌​​‌​​‌‌​‌​​‌​‌‌‌​‌​​​‌‌​​​​‌​​‌​​​​​​‌‌​​‌​​​‌‌​​‌​‌​​‌​​​​​​‌​‌​​‌​​‌‌​‌​​‌​‌‌‌‌​​​​‌‌​‌​​‌​‌‌‌​‌​‌​‌‌‌​​‌‌​​‌​‌‌‌​⁠*/
 /**
  * Service worker: resuelve el numero de WhatsApp de un anunciante.
  *
@@ -1101,3 +1102,66 @@ chrome.runtime.onMessage.addListener((msg, _remitente, responder) => {
     return true;
   }
 });
+
+// ===========================================================================
+// actualizaciones (distribucion privada por GitHub, extension descomprimida)
+// ===========================================================================
+
+/*
+ * Chrome no actualiza solas las extensiones cargadas como descomprimidas.
+ * Dos piezas lo resuelven sin tocar los datos del usuario (que viven en el
+ * perfil del navegador, ligados al ID fijo de la extension, no en la carpeta):
+ *
+ * 1. Aviso: cada 6 horas se consulta version.json en el repositorio. Si hay
+ *    una version mayor, el icono muestra una flecha y el popup lo explica.
+ * 2. Recarga sola: el script actualizar.bat reemplaza los archivos de la
+ *    carpeta; cada minuto se compara la version del manifest del disco con
+ *    la que esta corriendo y, si cambio, la extension se recarga sola.
+ */
+const REPO_ACTUALIZACIONES = "USUARIO/REPOSITORIO"; // p. ej. "rixius/vyxen"
+const URL_VERSION = "https://raw.githubusercontent.com/" + REPO_ACTUALIZACIONES + "/main/version.json";
+
+const compararVersiones = (a, b) => {
+  const x = String(a).split(".").map(Number);
+  const y = String(b).split(".").map(Number);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    const d = (x[i] || 0) - (y[i] || 0);
+    if (d) return d;
+  }
+  return 0;
+};
+
+async function buscarActualizacion() {
+  if (REPO_ACTUALIZACIONES.startsWith("USUARIO/")) return;
+  try {
+    const r = await fetch(URL_VERSION + "?t=" + Date.now(), { cache: "no-store", credentials: "omit" });
+    if (!r.ok) return;
+    const remota = await r.json();
+    const actual = chrome.runtime.getManifest().version;
+    if (remota.version && compararVersiones(remota.version, actual) > 0) {
+      await chrome.storage.local.set({ actualizacion: { version: remota.version, notas: remota.notas || "" } });
+      chrome.action.setBadgeText({ text: "↑" });
+      chrome.action.setBadgeBackgroundColor({ color: "#12d95e" });
+    } else {
+      await chrome.storage.local.remove("actualizacion");
+      chrome.action.setBadgeText({ text: "" });
+    }
+  } catch {}
+}
+
+async function recargarSiCambiaronLosArchivos() {
+  try {
+    const r = await fetch(chrome.runtime.getURL("manifest.json"), { cache: "no-store" });
+    const enDisco = (await r.json()).version;
+    if (enDisco && enDisco !== chrome.runtime.getManifest().version) chrome.runtime.reload();
+  } catch {}
+}
+
+chrome.alarms.create("buscarActualizacion", { periodInMinutes: 360, delayInMinutes: 1 });
+chrome.alarms.create("archivosNuevos", { periodInMinutes: 1 });
+chrome.alarms.onAlarm.addListener((a) => {
+  if (a.name === "buscarActualizacion") buscarActualizacion();
+  if (a.name === "archivosNuevos") recargarSiCambiaronLosArchivos();
+});
+chrome.runtime.onStartup.addListener(buscarActualizacion);
+chrome.runtime.onInstalled.addListener(buscarActualizacion);
