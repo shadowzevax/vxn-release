@@ -2125,9 +2125,15 @@
   border-radius: 4px;
 }
 
-/* Pegados al lapiz (a la derecha) mientras caben; si no caben, se desplaza. */
+/* Centrados mientras caben (con pocos accesos no queda un hueco vacio a la
+   izquierda); si no caben, los margenes automaticos se anulan solos y la
+   tira se desplaza con normalidad. */
 .was-accesos > :first-child {
   margin-left: auto;
+}
+
+.was-accesos > :last-child {
+  margin-right: auto;
 }
 
 .was-accesos-flecha {
