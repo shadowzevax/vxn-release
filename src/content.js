@@ -996,7 +996,14 @@
   // Escape cancela la seleccion sin tener que ir a buscar el menu de nuevo:
   // es el atajo natural para "salir de este modo" en casi cualquier programa.
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && multiDescarga.activo) desactivarMultiDescarga();
+    if (e.key !== "Escape") return;
+    if (multiDescarga.activo) return desactivarMultiDescarga();
+    // Escape cierra primero el cuadro de ajustes abierto dentro del panel, y
+    // si no hay ninguno, recoge el panel en su circulo.
+    if (!panel || document.querySelector(".was-suelto-fondo")) return;
+    const abierto = panel.querySelector(".was-modal-fondo");
+    if (abierto) return abierto._wasQuitar ? abierto._wasQuitar() : abierto.remove();
+    if (!panel.classList.contains("was-plegado")) panel.querySelector(".was-plegar")?.click();
   });
 
   /*
@@ -3135,9 +3142,9 @@
     caja.appendChild(cab);
     caja.appendChild(contenido);
 
-    const listo = el("button", "was-primario", "LISTO");
-    listo.addEventListener("click", quitar);
-    caja.appendChild(listo);
+    // Sin boton "Listo": cada cambio se aplica al momento; se cierra con la X,
+    // clic fuera o Escape.
+    fondo._wasQuitar = quitar;
 
     fondo.appendChild(caja);
     fondo.addEventListener("click", (e) => e.target === fondo && quitar());
