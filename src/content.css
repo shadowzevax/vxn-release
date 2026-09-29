@@ -2092,27 +2092,70 @@
   align-items: center;
 }
 
+.was-accesos-tira {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
 .was-accesos {
   flex: 1;
   min-width: 0;
   display: flex;
   align-items: center;
   gap: 6px;
+  padding-bottom: 5px;
+  margin-bottom: -5px;
   overflow-x: auto;
-  scrollbar-width: none;
+  scroll-behavior: smooth;
+  /* Barra fina y discreta, pero visible: indica que se puede desplazar. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
   cursor: default;
 }
 
-/* Pegados al ojo (a la derecha) mientras caben; si no caben, se desplaza
-   con la rueda o arrastrando y el lapiz sigue siendo alcanzable. Con
-   justify-content: flex-end lo que desbordaba por la izquierda quedaba
-   fuera de alcance. */
+.was-accesos::-webkit-scrollbar {
+  height: 4px;
+}
+
+.was-accesos::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 4px;
+}
+
+/* Pegados al lapiz (a la derecha) mientras caben; si no caben, se desplaza. */
 .was-accesos > :first-child {
   margin-left: auto;
 }
 
-.was-accesos::-webkit-scrollbar {
-  display: none;
+.was-accesos-flecha {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  width: 28px;
+  height: 28px;
+  margin-top: -14px;
+  font: 700 20px/1 var(--was-ui);
+  color: #fff;
+  background: var(--was-tinta);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  box-shadow: 0 0 12px 6px var(--was-tinta);
+  cursor: pointer;
+}
+
+.was-accesos-flecha:hover {
+  border-color: #fff;
+}
+
+.was-accesos-flecha-izq {
+  left: 0;
+}
+
+.was-accesos-flecha-der {
+  right: 0;
 }
 
 .was-acceso,
@@ -2140,13 +2183,25 @@
 }
 
 .was-acceso-editar {
-  width: 32px;
+  flex: none;
+  width: 36px;
+  height: 36px;
   padding: 0;
   justify-content: center;
-  font-size: 15px;
-  color: #9aa0aa;
-  background: transparent;
-  border-style: dashed;
+  color: var(--was-verde);
+  background: rgba(18, 217, 94, 0.12);
+  border: 1.5px solid var(--was-verde);
+  border-radius: 50%;
+}
+
+.was-acceso-editar svg {
+  width: 17px;
+  height: 17px;
+}
+
+.was-acceso-editar:hover {
+  color: #06280f;
+  background: var(--was-verde);
 }
 
 /* Interruptor: la luz se enciende en verde cuando esta activado. */
@@ -2225,14 +2280,58 @@
   overflow-y: auto;
 }
 
+.was-accesos-titulo {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--was-gris);
+}
+
 .was-accesos-fila {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 7px 4px;
+  gap: 5px;
+  padding: 5px 4px 5px 8px;
   font-size: 13px;
   border-radius: 6px;
+}
+
+.was-accesos-nombre {
+  flex: 1;
+}
+
+.was-accesos-btn {
+  width: 26px;
+  height: 26px;
+  font: 700 14px/1 var(--was-ui);
+  color: var(--was-tinta);
+  background: #f0f2f5;
+  border: 1px solid #d8dee6;
+  border-radius: 6px;
   cursor: pointer;
+}
+
+.was-accesos-btn:hover:not(:disabled) {
+  background: #e2e6ec;
+}
+
+.was-accesos-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.was-accesos-quitar:hover:not(:disabled) {
+  color: #fff;
+  background: #d3272b;
+  border-color: #d3272b;
+}
+
+.was-accesos-poner {
+  color: #06280f;
+  background: var(--was-verde);
+  border-color: var(--was-verde);
 }
 
 .was-accesos-fila:hover {

@@ -1293,6 +1293,9 @@
     wa: relleno(
       '<path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/>'
     ),
+    lapiz: trazo(
+      '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'
+    ),
     calendario: trazo(
       '<path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/>' +
         '<path d="M3 9h18"/><path d="M8 13h.01"/><path d="M12 13h.01"/><path d="M16 13h.01"/>' +
@@ -4691,14 +4694,6 @@
     if (!contenedorAccesos) return;
     contenedorAccesos.innerHTML = "";
 
-    const editar = el("button", "was-acceso-editar", "&#9998;");
-    editar.title = "Editar accesos rapidos";
-    editar.addEventListener("click", (e) => {
-      e.stopPropagation();
-      editarAccesos();
-    });
-    contenedorAccesos.appendChild(editar);
-
     const lista = (prefs.accesosRapidos || ACCESOS_PREDETERMINADOS).filter((id) => ACCESOS[id]);
     for (const id of lista) {
       const d = ACCESOS[id];
@@ -4747,10 +4742,27 @@
     }
     // Si no caben todos, se ve primero el final (lo mas cerca del ojo).
     contenedorAccesos.scrollLeft = contenedorAccesos.scrollWidth;
+    actualizarFlechasAccesos();
   };
 
+  // Flechas de desplazamiento: solo cuando hay accesos fuera de la vista.
+  let flechaAccIzq = null;
+  let flechaAccDer = null;
+  const actualizarFlechasAccesos = () => {
+    if (!contenedorAccesos || !flechaAccIzq) return;
+    const c = contenedorAccesos;
+    const sobra = c.scrollWidth - c.clientWidth > 2;
+    flechaAccIzq.classList.toggle("was-oculto", !sobra || c.scrollLeft <= 1);
+    flechaAccDer.classList.toggle("was-oculto", !sobra || c.scrollLeft >= c.scrollWidth - c.clientWidth - 1);
+  };
+
+  /*
+   * Editor de accesos: arriba los que estan en la bandeja, en su orden (se
+   * suben o bajan con las flechas, o se quitan con la X); abajo los que se
+   * pueden añadir, que entran al final. Asi cada uno los ordena como quiera.
+   */
   const editarAccesos = () => {
-    const actuales = new Set(prefs.accesosRapidos || ACCESOS_PREDETERMINADOS);
+    let orden = [...(prefs.accesosRapidos || ACCESOS_PREDETERMINADOS)].filter((id) => ACCESOS[id]);
     const fondo = el("div", "was-suelto-fondo");
     const caja = el("div", "was-suelto was-suelto-etiquetas");
     const cerrar = () => fondo.remove();
@@ -4761,32 +4773,71 @@
     x.addEventListener("click", cerrar);
     cab.appendChild(x);
     caja.appendChild(cab);
-    caja.appendChild(el("div", "was-etiquetas-ayuda", "Marca los que quieres en la bandeja. Aparecen a la izquierda del ojo."));
 
-    const lista = el("div", "was-accesos-lista");
-    for (const [id, d] of Object.entries(ACCESOS)) {
-      const fila = el("label", "was-accesos-fila");
-      const cb = el("input");
-      cb.type = "checkbox";
-      cb.checked = actuales.has(id);
-      cb.addEventListener("change", () => (cb.checked ? actuales.add(id) : actuales.delete(id)));
-      fila.append(cb, el("span", null, d.texto));
-      lista.appendChild(fila);
-    }
-    caja.appendChild(lista);
+    const enBandeja = el("div", "was-accesos-lista");
+    const disponibles = el("div", "was-accesos-lista");
+
+    const pintar2 = () => {
+      enBandeja.innerHTML = "";
+      disponibles.innerHTML = "";
+      if (!orden.length) enBandeja.appendChild(el("p", "was-etiquetas-vacio", "La bandeja no tiene accesos."));
+      orden.forEach((id, i) => {
+        const fila = el("div", "was-accesos-fila");
+        fila.appendChild(el("span", "was-accesos-nombre", ACCESOS[id].texto));
+        const mover = (d) => {
+          const j = i + d;
+          if (j < 0 || j >= orden.length) return;
+          [orden[i], orden[j]] = [orden[j], orden[i]];
+          pintar2();
+        };
+        const sube = el("button", "was-accesos-btn", "&#8593;");
+        sube.title = "Mover a la izquierda";
+        sube.disabled = i === 0;
+        sube.addEventListener("click", () => mover(-1));
+        const baja = el("button", "was-accesos-btn", "&#8595;");
+        baja.title = "Mover a la derecha";
+        baja.disabled = i === orden.length - 1;
+        baja.addEventListener("click", () => mover(1));
+        const quita = el("button", "was-accesos-btn was-accesos-quitar", "&times;");
+        quita.title = "Quitar de la bandeja";
+        quita.addEventListener("click", () => {
+          orden = orden.filter((o) => o !== id);
+          pintar2();
+        });
+        fila.append(sube, baja, quita);
+        enBandeja.appendChild(fila);
+      });
+      const libres = Object.keys(ACCESOS).filter((id) => !orden.includes(id));
+      if (!libres.length) disponibles.appendChild(el("p", "was-etiquetas-vacio", "Ya estan todos en la bandeja."));
+      for (const id of libres) {
+        const fila = el("div", "was-accesos-fila");
+        fila.appendChild(el("span", "was-accesos-nombre", ACCESOS[id].texto));
+        const pon = el("button", "was-accesos-btn was-accesos-poner", "+");
+        pon.title = "Añadir al final";
+        pon.addEventListener("click", () => {
+          orden.push(id);
+          pintar2();
+        });
+        fila.appendChild(pon);
+        disponibles.appendChild(fila);
+      }
+    };
+    pintar2();
+
+    caja.appendChild(el("div", "was-accesos-titulo", "En la bandeja (de izquierda a derecha)"));
+    caja.appendChild(enBandeja);
+    caja.appendChild(el("div", "was-accesos-titulo", "Añadir"));
+    caja.appendChild(disponibles);
 
     const pie = el("div", "was-etiquetas-pie");
     const restablecer = el("button", "was-mini was-mini-suave", "Predeterminados");
     restablecer.addEventListener("click", () => {
-      prefs.accesosRapidos = [...ACCESOS_PREDETERMINADOS];
-      guardarPrefs();
-      pintarAccesos();
-      cerrar();
+      orden = [...ACCESOS_PREDETERMINADOS];
+      pintar2();
     });
     const guardar = el("button", "was-primario", "GUARDAR");
     guardar.addEventListener("click", () => {
-      // Se respeta el orden del catalogo, que agrupa filtros y acciones.
-      prefs.accesosRapidos = Object.keys(ACCESOS).filter((id) => actuales.has(id));
+      prefs.accesosRapidos = [...orden];
       guardarPrefs();
       pintarAccesos();
       cerrar();
@@ -4865,15 +4916,45 @@
 
     // El boton de plegar va a la derecha: la bandeja esta anclada a ese lado y
     // asi se despliega hacia la izquierda, sin saltar de sitio.
+    /*
+     * Tira de accesos con desplazamiento horizontal: barra fina, flechas a
+     * los lados cuando hay accesos fuera de la vista, y la rueda del raton
+     * (vertical u horizontal) mueve la tira.
+     */
     contenedorAccesos = el("div", "was-accesos");
-    // Rueda vertical = desplazamiento horizontal, cuando no caben todos.
     contenedorAccesos.addEventListener("wheel", (e) => {
       if (contenedorAccesos.scrollWidth <= contenedorAccesos.clientWidth) return;
       e.preventDefault();
-      contenedorAccesos.scrollLeft += e.deltaY;
+      contenedorAccesos.scrollLeft += Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
     }, { passive: false });
+    contenedorAccesos.addEventListener("scroll", actualizarFlechasAccesos, { passive: true });
+    window.addEventListener("resize", actualizarFlechasAccesos);
+
+    const flecha = (clase, icono, paso) => {
+      const f = el("button", "was-accesos-flecha " + clase, icono);
+      f.addEventListener("mousedown", (e) => e.stopPropagation());
+      f.addEventListener("click", (e) => {
+        e.stopPropagation();
+        contenedorAccesos.scrollBy({ left: paso * contenedorAccesos.clientWidth * 0.6, behavior: "smooth" });
+      });
+      return f;
+    };
+    flechaAccIzq = flecha("was-accesos-flecha-izq", "&#8249;", -1);
+    flechaAccDer = flecha("was-accesos-flecha-der", "&#8250;", 1);
+    const tira = el("div", "was-accesos-tira");
+    tira.append(flechaAccIzq, contenedorAccesos, flechaAccDer);
+
+    // Lapiz de editar: fuera de la tira, pegado a la izquierda del ojo.
+    const editar = el("button", "was-acceso-editar", ICONOS.lapiz);
+    editar.title = "Editar accesos rapidos";
+    editar.addEventListener("mousedown", (e) => e.stopPropagation());
+    editar.addEventListener("click", (e) => {
+      e.stopPropagation();
+      editarAccesos();
+    });
+
     pintarAccesos();
-    bandejaRapida.append(descargaMultiBtn, contenedorAccesos, ojo, contador, arriba, alternar);
+    bandejaRapida.append(descargaMultiBtn, tira, editar, ojo, contador, arriba, alternar);
     if (prefs.rapidaPlegada) bandejaRapida.classList.add("was-plegada");
     pintarAlternar();
 

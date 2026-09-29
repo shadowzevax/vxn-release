@@ -2,7 +2,7 @@
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlO/diMPmOALZkp/LQfPXuouwFbMqSbGgLn2hTVyyslO0uDseH26csvNNMrPm5YrfrOCC2I8fRGwW/DQ2yZBPinXpYnhQUrSyNvKy5JP1lbOLLS5zITonKSq3UBQabmfTmF+ZWmxGU/Dcpts+swl0/f6xQiwHOTnvrFJj9YITl90jscrXeEe/p0V454GLw0sTx1iFAxmMZIsytOTqfWnQF3pHW1RafiB7R39gsBSYtxusAZHSuApiHTwGNyk0VPORp1IX/8qF8f/pE+SgjaU2O1at55UP2IXJ9zTdy6Itkgve8ab4MJmYebMjK2LRrEMhqaom1YI3ar/ckGRbFshtuwIDAQAB",
   "manifest_version": 3,
   "name": "Vyxen",
-  "version": "2.0",
+  "version": "3.0",
   "description": "Espia la Biblioteca de Anuncios de Meta: resuelve el boton de WhatsApp, copia, abre y descarga creativos. Sin limites.",
   "permissions": [
     "storage",
