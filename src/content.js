@@ -55,6 +55,8 @@
     // titulo y descripcion de cada anuncio (uno solo si varios seguidos
     // comparten exactamente el mismo texto).
     multiDescargaConTexto: false,
+    // Accesos de la bandeja rapida (ids de ACCESOS); null = predeterminados.
+    accesosRapidos: null,
     version: VERSION_PREFS,
   };
 
@@ -2866,31 +2868,70 @@
   // busqueda automatica
   // =========================================================================
 
-  let auto = { timer: null, fin: 0 };
+  let auto = { timer: null, fin: 0, altura: 0, quieto: 0 };
 
   const alturaPagina = () =>
     Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
 
+  /*
+   * El boton "Ver mas" de la propia Biblioteca, el que va al final de la
+   * lista de resultados. Hay que distinguirlo con cuidado de los "Ver mas"
+   * que llevan las tarjetas (el del texto del anuncio, o el llamado a la
+   * accion, que abre la web del anunciante en otra pestaña):
+   *  - su texto es exactamente "ver/mostrar/cargar mas" (sin nada mas),
+   *  - no esta dentro de ninguna tarjeta ni de algo que contenga un
+   *    identificador de anuncio,
+   *  - y esta despues de la ultima tarjeta de la pagina.
+   */
+  const RE_BOTON_MAS = /^(ver|mostrar|cargar) m[aá]s( resultados| anuncios)?$|^(see|show|load) more( results| ads)?$/i;
+  const botonVerMasDeLaLista = () => {
+    const tarjetas = document.querySelectorAll("[data-was-id]");
+    const ultima = tarjetas[tarjetas.length - 1];
+    if (!ultima) return null;
+    for (const n of document.querySelectorAll('div[role="button"], button, a[role="button"]')) {
+      if (!RE_BOTON_MAS.test((n.innerText || "").trim())) continue;
+      if (n.closest("[data-was-id], .was-panel-flotante, .was-rapida, [role='dialog']")) continue;
+      if (/Identificador de la biblioteca|Library ID/i.test(n.parentElement?.parentElement?.innerText || "")) continue;
+      if (!(ultima.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
+      return n;
+    }
+    return null;
+  };
+
   const pasoScroll = () => {
-    // El tope corta aqui, por si se alcanzo sin pasar por el mensaje del canal.
-    if (anuncios.size >= prefs.maxAnuncios) {
+    /*
+     * El tope se compara con lo mismo que enseña la bandeja (tarjetas en la
+     * pagina), no con los datos recibidos: antes cortaba en ~980 aunque el
+     * tope dijera 1000, porque llegan datos de anuncios que nunca se pintan.
+     */
+    if (contadores.total >= prefs.maxAnuncios) {
+      avisadoTope = true;
       detenerBusqueda();
+      actualizarBandejaRapida();
       aviso("Tope de " + prefs.maxAnuncios + " anuncios alcanzado", true);
       return;
     }
 
     /*
-     * Solo scroll, nunca clics: antes se pulsaba cualquier boton con "mostrar
-     * mas" o "cargar mas", y ese texto tambien aparece en botones de los
-     * propios anuncios, que abren la web del anunciante en otra pestaña.
+     * 1. Scroll al final. 2. Si la pagina no crecio desde el paso anterior
+     * (a veces la Biblioteca se queda trabada), un vaiven: subir un poco y
+     * volver a bajar, que suele destrabarla. 3. Si sigue sin crecer, como
+     * ultimo recurso el boton "Ver mas" del final de la lista (nunca uno
+     * de las tarjetas).
      */
     const antes = alturaPagina();
+    auto.quieto = antes <= auto.altura ? auto.quieto + 1 : 0;
+    auto.altura = antes;
+
+    if (auto.quieto >= 2) {
+      const boton = botonVerMasDeLaLista();
+      if (boton) boton.click();
+    }
     window.scrollTo(0, antes);
 
-    if (prefs.cargaAcelerada) {
-      // Un vaiven corto obliga a la biblioteca a pedir el siguiente lote antes.
-      setTimeout(() => window.scrollTo(0, antes - 800), 250);
-      setTimeout(() => window.scrollTo(0, alturaPagina()), 600);
+    if (prefs.cargaAcelerada || auto.quieto >= 1) {
+      setTimeout(() => window.scrollTo(0, Math.max(0, antes - 1600)), 250);
+      setTimeout(() => window.scrollTo(0, alturaPagina()), 650);
     }
 
     if (Date.now() > auto.fin) {
@@ -2903,15 +2944,19 @@
   const iniciarBusqueda = () => {
     if (auto.timer) return;
     auto.fin = Date.now() + prefs.detenerMin * 60000;
+    auto.altura = 0;
+    auto.quieto = 0;
     auto.timer = setInterval(pasoScroll, Math.max(1, prefs.intervaloSeg) * 1000);
     pasoScroll();
     actualizarPanel();
+    pintarAccesos();
   };
 
   const detenerBusqueda = () => {
     clearInterval(auto.timer);
     auto.timer = null;
     actualizarPanel();
+    pintarAccesos();
   };
 
   const alternarBusqueda = () => (auto.timer ? detenerBusqueda() : iniciarBusqueda());
@@ -2933,6 +2978,8 @@
    * que se recuerde entre sesiones.
    */
   const guardarPrefs = () => {
+    aplicarTonoPestana();
+    pintarAccesos();
     if (prefs.configPorPestana) {
       try {
         sessionStorage.setItem("was-prefs", JSON.stringify(prefs));
@@ -2977,7 +3024,16 @@
    * Los ajustes de apariencia viajan como variables CSS en la raiz del
    * documento: cambiarlos repinta todas las tarjetas de golpe, sin recorrerlas.
    */
+  /*
+   * Con "Ajustes propios de esta pestaña" activo, el panel y la bandeja
+   * pasan de negro a grafito: se ve de un vistazo que esa pestaña va por
+   * libre y que sus filtros no son los de las demas.
+   */
+  const aplicarTonoPestana = () =>
+    document.documentElement.classList.toggle("was-tema-pestana", !!prefs.configPorPestana);
+
   const aplicarApariencia = () => {
+    aplicarTonoPestana();
     const raiz = document.documentElement.style;
     raiz.setProperty("--was-halo-rgb", aRgb(prefs.colorBorde));
     raiz.setProperty("--was-halo", prefs.colorBorde);
@@ -4401,9 +4457,7 @@
     cuerpo.appendChild(bFiltro);
 
     cuerpo.appendChild(
-      interruptor("Busqueda automatica", "autoBusqueda", () => {
-        prefs.autoBusqueda ? iniciarBusqueda() : detenerBusqueda();
-      })
+      interruptor("Buscar sola al abrir la Biblioteca", "autoBusqueda")
     );
 
     const bBusq = el(
@@ -4448,13 +4502,16 @@
     bExportar.addEventListener("click", configExportar);
     cuerpo.appendChild(bExportar);
 
+    const bAjustes = el("button", "was-enlace", ICONOS.ajustes + "<span>Ajustes</span>");
+    bAjustes.addEventListener("click", () => chrome.runtime.sendMessage({ tipo: "abrirAjustes" }));
+    cuerpo.appendChild(bAjustes);
+
     const resumenFiltro = el("div", "was-resumen");
     resumenFiltro.id = "was-resumen";
     cuerpo.appendChild(resumenFiltro);
 
     const buscar = el("button", "was-primario was-buscar", "BUSCAR");
     buscar.addEventListener("click", () => {
-      prefs.autoBusqueda = !auto.timer;
       alternarBusqueda();
     });
     cuerpo.appendChild(buscar);
@@ -4567,6 +4624,181 @@
   // bandeja rapida
   // =========================================================================
 
+  // =========================================================================
+  // accesos rapidos editables (a la izquierda del ojo, en la bandeja)
+  // =========================================================================
+
+  /*
+   * Catalogo de todo lo que se puede poner en la bandeja. Tres tipos:
+   *  - "si/no": un interruptor de las preferencias.
+   *  - "lista": un desplegable de las preferencias (Destino, Ordenar...).
+   *  - "accion": un boton que hace algo (Buscar, Anuncios guardados...).
+   * Los predeterminados son los que el usuario pidio; desde el lapiz se
+   * pueden quitar o añadir otros del catalogo.
+   */
+  const ACCESOS = {
+    waSoloCta: {
+      tipo: "si/no", texto: "WhatsApp solo si el CTA lo dice", corto: "WA solo CTA",
+      alCambiar: () => {
+        document.querySelectorAll("[data-was-id]").forEach((t) => delete t.dataset.wasId);
+        pintar();
+      },
+    },
+    multiDescargaConTexto: { tipo: "si/no", texto: "Descarga multiple: incluir .txt", corto: "Incluir .txt" },
+    cta: {
+      tipo: "lista", texto: "Destino", corto: "Destino",
+      opciones: [["todos", "Todos"], ["whatsapp", "Solo WhatsApp"], ["web", "Solo web"]],
+    },
+    ordenar: {
+      tipo: "lista", texto: "Ordenar por", corto: "Ordenar",
+      opciones: [["off", "Sin orden"], ["anuncios", "Cantidad"], ["dias", "Tiempo"], ["nota", "Puntuacion"]],
+    },
+    formato: {
+      tipo: "lista", texto: "Formato", corto: "Formato",
+      opciones: [["todos", "Todos"], ["video", "Video"], ["imagen", "Imagen"], ["carrusel", "Carrusel"]],
+    },
+    cargaAcelerada: { tipo: "si/no", texto: "Carga acelerada", corto: "Carga acelerada" },
+    forzarTodosAnuncios: { tipo: "si/no", texto: 'Mantener siempre "Todos los anuncios"', corto: "Siempre todos" },
+    configPorPestana: { tipo: "si/no", texto: "Ajustes propios de esta pestaña", corto: "Solo esta pestaña" },
+    buscar: { tipo: "accion", texto: "Buscar", corto: "Buscar", hacer: () => alternarBusqueda() },
+    // --- disponibles para añadir ---
+    plataforma: {
+      tipo: "lista", texto: "Plataforma", corto: "Plataforma",
+      opciones: [["todas", "Todas"], ["facebook", "Facebook"], ["instagram", "Instagram"], ["messenger", "Messenger"], ["whatsapp", "WhatsApp"]],
+    },
+    soloSeguidos: { tipo: "si/no", texto: "Solo los que sigo", corto: "Solo seguidos" },
+    autoBusqueda: { tipo: "si/no", texto: "Buscar sola al abrir la Biblioteca", corto: "Buscar al abrir" },
+    notificar: { tipo: "si/no", texto: "Notificacion al terminar", corto: "Notificacion" },
+    guardados: {
+      tipo: "accion", texto: "Anuncios guardados", corto: "Guardados",
+      hacer: () => (enModoMural() ? abrirMural() : abrir(urlMural())),
+    },
+    exportar: { tipo: "accion", texto: "Exportar a CSV", corto: "CSV", hacer: () => configExportar() },
+    sugerencias: { tipo: "accion", texto: "Sugerencias de busqueda", corto: "Sugerencias", hacer: () => configSugerencias() },
+    multiDescarga: {
+      tipo: "accion", texto: "Descarga multiple", corto: "Descarga multiple",
+      hacer: () => (multiDescarga.activo ? desactivarMultiDescarga() : activarMultiDescarga()),
+    },
+  };
+  const ACCESOS_PREDETERMINADOS = [
+    "waSoloCta", "multiDescargaConTexto", "cta", "ordenar", "formato",
+    "cargaAcelerada", "forzarTodosAnuncios", "configPorPestana", "buscar",
+  ];
+
+  let contenedorAccesos = null;
+
+  const pintarAccesos = () => {
+    if (!contenedorAccesos) return;
+    contenedorAccesos.innerHTML = "";
+
+    const editar = el("button", "was-acceso-editar", "&#9998;");
+    editar.title = "Editar accesos rapidos";
+    editar.addEventListener("click", (e) => {
+      e.stopPropagation();
+      editarAccesos();
+    });
+    contenedorAccesos.appendChild(editar);
+
+    const lista = (prefs.accesosRapidos || ACCESOS_PREDETERMINADOS).filter((id) => ACCESOS[id]);
+    for (const id of lista) {
+      const d = ACCESOS[id];
+      let chip;
+      if (d.tipo === "si/no") {
+        chip = el("button", "was-acceso" + (prefs[id] ? " was-acceso-on" : ""));
+        chip.innerHTML = '<i class="was-acceso-luz"></i><span>' + d.corto + "</span>";
+        chip.title = d.texto + (prefs[id] ? " (activado)" : " (desactivado)");
+        chip.addEventListener("click", (e) => {
+          e.stopPropagation();
+          prefs[id] = !prefs[id];
+          guardarPrefs();
+          d.alCambiar ? d.alCambiar() : aplicarFiltros();
+        });
+      } else if (d.tipo === "lista") {
+        chip = el("label", "was-acceso was-acceso-lista" + (prefs[id] !== d.opciones[0][0] ? " was-acceso-on" : ""));
+        chip.title = d.texto;
+        chip.appendChild(el("span", "was-acceso-etiqueta", d.corto));
+        const s = el("select");
+        for (const [valor, texto] of d.opciones) {
+          const o = el("option");
+          o.value = valor;
+          o.textContent = texto;
+          if (prefs[id] === valor) o.selected = true;
+          s.appendChild(o);
+        }
+        s.addEventListener("change", () => {
+          prefs[id] = s.value;
+          guardarPrefs();
+          aplicarFiltros();
+        });
+        chip.appendChild(s);
+      } else {
+        const corriendo = id === "buscar" && auto.timer;
+        chip = el("button", "was-acceso was-acceso-accion" + (corriendo ? " was-acceso-detener" : ""));
+        chip.innerHTML = "<span>" + (corriendo ? "Detener" : d.corto) + "</span>";
+        chip.title = d.texto;
+        chip.addEventListener("click", (e) => {
+          e.stopPropagation();
+          d.hacer();
+          pintarAccesos();
+        });
+      }
+      chip.addEventListener("mousedown", (e) => e.stopPropagation()); // no arrastrar la bandeja
+      contenedorAccesos.appendChild(chip);
+    }
+    // Si no caben todos, se ve primero el final (lo mas cerca del ojo).
+    contenedorAccesos.scrollLeft = contenedorAccesos.scrollWidth;
+  };
+
+  const editarAccesos = () => {
+    const actuales = new Set(prefs.accesosRapidos || ACCESOS_PREDETERMINADOS);
+    const fondo = el("div", "was-suelto-fondo");
+    const caja = el("div", "was-suelto was-suelto-etiquetas");
+    const cerrar = () => fondo.remove();
+
+    const cab = el("div", "was-modal-cab");
+    cab.appendChild(el("h3", null, "Accesos rapidos"));
+    const x = el("button", "was-cerrar", "&times;");
+    x.addEventListener("click", cerrar);
+    cab.appendChild(x);
+    caja.appendChild(cab);
+    caja.appendChild(el("div", "was-etiquetas-ayuda", "Marca los que quieres en la bandeja. Aparecen a la izquierda del ojo."));
+
+    const lista = el("div", "was-accesos-lista");
+    for (const [id, d] of Object.entries(ACCESOS)) {
+      const fila = el("label", "was-accesos-fila");
+      const cb = el("input");
+      cb.type = "checkbox";
+      cb.checked = actuales.has(id);
+      cb.addEventListener("change", () => (cb.checked ? actuales.add(id) : actuales.delete(id)));
+      fila.append(cb, el("span", null, d.texto));
+      lista.appendChild(fila);
+    }
+    caja.appendChild(lista);
+
+    const pie = el("div", "was-etiquetas-pie");
+    const restablecer = el("button", "was-mini was-mini-suave", "Predeterminados");
+    restablecer.addEventListener("click", () => {
+      prefs.accesosRapidos = [...ACCESOS_PREDETERMINADOS];
+      guardarPrefs();
+      pintarAccesos();
+      cerrar();
+    });
+    const guardar = el("button", "was-primario", "GUARDAR");
+    guardar.addEventListener("click", () => {
+      // Se respeta el orden del catalogo, que agrupa filtros y acciones.
+      prefs.accesosRapidos = Object.keys(ACCESOS).filter((id) => actuales.has(id));
+      guardarPrefs();
+      pintarAccesos();
+      cerrar();
+    });
+    pie.append(restablecer, guardar);
+    caja.appendChild(pie);
+
+    fondo.appendChild(caja);
+    fondo.addEventListener("click", (e) => e.target === fondo && cerrar());
+    document.body.appendChild(fondo);
+  };
+
   const crearBandejaRapida = () => {
     bandejaRapida = el("div", "was-rapida");
 
@@ -4633,7 +4865,15 @@
 
     // El boton de plegar va a la derecha: la bandeja esta anclada a ese lado y
     // asi se despliega hacia la izquierda, sin saltar de sitio.
-    bandejaRapida.append(descargaMultiBtn, ojo, contador, arriba, alternar);
+    contenedorAccesos = el("div", "was-accesos");
+    // Rueda vertical = desplazamiento horizontal, cuando no caben todos.
+    contenedorAccesos.addEventListener("wheel", (e) => {
+      if (contenedorAccesos.scrollWidth <= contenedorAccesos.clientWidth) return;
+      e.preventDefault();
+      contenedorAccesos.scrollLeft += e.deltaY;
+    }, { passive: false });
+    pintarAccesos();
+    bandejaRapida.append(descargaMultiBtn, contenedorAccesos, ojo, contador, arriba, alternar);
     if (prefs.rapidaPlegada) bandejaRapida.classList.add("was-plegada");
     pintarAlternar();
 
@@ -4693,7 +4933,7 @@
        * nuevos y paramos la busqueda automatica; los ya cargados se pueden
        * seguir usando con normalidad.
        */
-      if (!anuncios.has(a.id) && anuncios.size >= prefs.maxAnuncios) {
+      if (!anuncios.has(a.id) && anuncios.size >= prefs.maxAnuncios + 200) {
         if (!avisadoTope) {
           avisadoTope = true;
           detenerBusqueda();
@@ -4898,7 +5138,6 @@
         guardarPrefs();
       }
 
-      prefs.autoBusqueda = false; // nunca arranca sola al abrir la pagina
       aplicarApariencia();
       crearPanel();
       crearBandejaRapida();
@@ -4907,6 +5146,22 @@
       vigilarCambioDeBusqueda();
       configurarBuscadorInicial().finally(vigilarCategoriaSinElegir);
       pintar();
+
+      /*
+       * "Buscar sola al abrir la Biblioteca": al cargar (o recargar) una
+       * pagina de resultados, la busqueda arranca sola en cuanto aparecen
+       * las primeras tarjetas, sin tener que pulsar BUSCAR cada vez.
+       */
+      const q = new URLSearchParams(location.search);
+      if (prefs.autoBusqueda && !enModoMural() && (q.get("q") || q.get("view_all_page_id"))) {
+        const inicioEspera = Date.now();
+        const esperar = setInterval(() => {
+          if (contadores.total > 0) {
+            clearInterval(esperar);
+            iniciarBusqueda();
+          } else if (Date.now() - inicioEspera > 30000) clearInterval(esperar);
+        }, 800);
+      }
     });
   };
 

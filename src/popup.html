@@ -99,17 +99,14 @@
       .marca img { width:34px; height:34px; }
       .marca span { font-family:"Cinzel","Trajan Pro","Cormorant Garamond",Georgia,serif; font-size:22px; font-weight:700; letter-spacing:.14em;
         background:linear-gradient(180deg,#3a3d44 0%,#0b0b0d 48%,#6e727b 62%,#1a1b1f 100%); -webkit-background-clip:text; background-clip:text; color:transparent; }
+          .version { margin-left:auto; padding:2px 8px; font-size:11px; font-weight:700; color:#0b0b0d; background:#eceef1; border-radius:20px; }
     </style>
   </head>
   <body>
-    <h1 class="marca"><img src="../icons/vyxen-128.png" alt=""><span>VYXEN</span></h1>
+    <h1 class="marca"><img src="../icons/vyxen-128.png" alt=""><span>VYXEN</span><small id="version" class="version"></small></h1>
     <div class="fila"><span>Anuncios leidos</span><b id="total">0</b></div>
     <div class="fila"><span>Con WhatsApp</span><b id="wa">0</b></div>
 
-    <label for="seg">Scroll automatico cada (segundos)</label>
-    <input id="seg" type="number" min="1" max="30" value="3" />
-
-    <button id="alternar">Iniciar busqueda automatica</button>
     <button id="recolocar" class="secundario">Recolocar el panel</button>
 
     <p class="aviso" id="nota">

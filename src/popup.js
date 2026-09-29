@@ -11,17 +11,12 @@ const refrescar = async () => {
   const t = await pestanaActiva();
   if (!enBiblioteca(t)) {
     $("nota").textContent = "Abre la Biblioteca de Anuncios para empezar.";
-    $("alternar").disabled = true;
     return;
   }
-  $("alternar").disabled = false;
   try {
     const e = await chrome.tabs.sendMessage(t.id, { tipo: "estado" });
     $("total").textContent = e.anuncios;
     $("wa").textContent = e.whatsapp;
-    $("alternar").textContent = e.corriendo
-      ? "Detener busqueda automatica"
-      : "Iniciar busqueda automatica";
     $("nota").textContent = e.corriendo
       ? "Bajando por los resultados..."
       : "Los anuncios se leen solos mientras haces scroll.";
@@ -29,16 +24,6 @@ const refrescar = async () => {
     $("nota").textContent = "Recarga la Biblioteca de Anuncios para activar la extension.";
   }
 };
-
-$("alternar").addEventListener("click", async () => {
-  const t = await pestanaActiva();
-  if (!enBiblioteca(t)) return;
-  await chrome.tabs.sendMessage(t.id, {
-    tipo: "autoScroll",
-    segundos: Number($("seg").value) || 3,
-  });
-  refrescar();
-});
 
 // Salida de emergencia: si el panel quedo fuera de la pantalla no hay forma de
 // arrastrarlo de vuelta, asi que se borran las posiciones guardadas.
@@ -48,6 +33,9 @@ $("recolocar").addEventListener("click", async () => {
   if (t) chrome.tabs.reload(t.id);
   window.close();
 });
+
+// Version de la extension (la misma del manifest: V1, V2...).
+$("version").textContent = "V" + chrome.runtime.getManifest().version.split(".")[0];
 
 refrescar();
 setInterval(refrescar, 1500);

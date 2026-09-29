@@ -2081,3 +2081,174 @@
   pointer-events: none;
   -webkit-user-drag: none;
 }
+
+/* ===================== bandeja: ancho completo y accesos rapidos ===================== */
+
+/* Desplegada ocupa todo el ancho de la ventana (queda a la altura donde se
+   dejo); recogida vuelve a ser el circulo de siempre. */
+.was-rapida:not(.was-plegada) {
+  left: 16px !important;
+  right: 16px !important;
+  align-items: center;
+}
+
+.was-accesos {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  cursor: default;
+}
+
+/* Pegados al ojo (a la derecha) mientras caben; si no caben, se desplaza
+   con la rueda o arrastrando y el lapiz sigue siendo alcanzable. Con
+   justify-content: flex-end lo que desbordaba por la izquierda quedaba
+   fuera de alcance. */
+.was-accesos > :first-child {
+  margin-left: auto;
+}
+
+.was-accesos::-webkit-scrollbar {
+  display: none;
+}
+
+.was-acceso,
+.was-acceso-editar {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 11px;
+  font: 700 11.5px/1 var(--was-ui);
+  white-space: nowrap;
+  color: #d7dae0;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s, border-color 0.14s;
+}
+
+.was-acceso:hover,
+.was-acceso-editar:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.was-acceso-editar {
+  width: 32px;
+  padding: 0;
+  justify-content: center;
+  font-size: 15px;
+  color: #9aa0aa;
+  background: transparent;
+  border-style: dashed;
+}
+
+/* Interruptor: la luz se enciende en verde cuando esta activado. */
+.was-acceso-luz {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #5b606a;
+}
+
+.was-acceso-on {
+  color: #fff;
+  border-color: rgba(18, 217, 94, 0.55);
+}
+
+.was-acceso-on .was-acceso-luz {
+  background: var(--was-verde);
+  box-shadow: 0 0 6px rgba(18, 217, 94, 0.8);
+}
+
+/* Desplegable dentro del chip. */
+.was-acceso-lista {
+  padding-right: 6px;
+}
+
+.was-acceso-etiqueta {
+  color: #9aa0aa;
+  font-weight: 600;
+}
+
+.was-acceso-lista select {
+  height: 26px;
+  max-width: 108px;
+  padding: 0 2px;
+  font: 700 11.5px/1 var(--was-ui);
+  color: #fff;
+  background: transparent;
+  border: 0;
+  outline: none;
+  cursor: pointer;
+}
+
+.was-acceso-lista select option {
+  color: #0b0b0d;
+}
+
+/* Accion principal (Buscar): verde; en rojo mientras se puede detener. */
+.was-acceso-accion {
+  color: #06280f;
+  background: var(--was-verde);
+  border-color: var(--was-verde);
+}
+
+.was-acceso-accion:hover {
+  color: #06280f;
+  background: #3be37c;
+}
+
+.was-acceso-detener {
+  color: #fff;
+  background: #d3272b;
+  border-color: #d3272b;
+}
+
+.was-acceso-detener:hover {
+  color: #fff;
+  background: #e0393d;
+}
+
+/* Editor de accesos. */
+.was-accesos-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.was-accesos-fila {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 4px;
+  font-size: 13px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.was-accesos-fila:hover {
+  background: #f2f3f5;
+}
+
+.was-accesos-fila input {
+  accent-color: var(--was-tinta);
+}
+
+/* ===================== tono de "Ajustes propios de esta pestaña" ===================== */
+
+html.was-tema-pestana .was-panel-flotante,
+html.was-tema-pestana .was-rapida {
+  --was-tinta: #34373f;
+  --was-mando: #34373f;
+  --was-mando-alto: #454952;
+  --was-tinta-2: #454952;
+}
