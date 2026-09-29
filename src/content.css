@@ -2363,3 +2363,81 @@ html.was-tema-pestana .was-rapida {
   --was-mando-alto: #454952;
   --was-tinta-2: #454952;
 }
+
+/* ===================== aviso: la extension se actualizo ===================== */
+
+.was-aviso-actualizada {
+  position: fixed;
+  left: 50%;
+  bottom: 96px;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 10px 10px 16px;
+  font: 13px/1.35 var(--was-ui);
+  color: #e7e9ee;
+  background: var(--was-tinta);
+  border: 1px solid rgba(18, 217, 94, 0.55);
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  transform: translateX(-50%);
+}
+
+.was-aviso-actualizada b {
+  color: #fff;
+  white-space: nowrap;
+}
+
+.was-aviso-actualizada span {
+  color: #b9bdc6;
+}
+
+.was-aviso-refrescar {
+  flex: none;
+  padding: 7px 14px;
+  font: 700 12.5px var(--was-ui);
+  color: #06280f;
+  background: var(--was-verde);
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.was-aviso-cerrar {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  font-size: 18px;
+  color: #9aa0aa;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.was-aviso-cerrar:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* "?" de mas informacion junto a un interruptor: circulo pequeño. */
+.was-switch-fila .was-pista {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-left: 2px;
+  font: 800 10.5px/1 var(--was-ui);
+  color: #6b7280;
+  border: 1.5px solid #9aa0aa;
+  border-radius: 50%;
+}
+
+.was-switch-fila .was-pista:hover {
+  color: var(--was-tinta);
+  border-color: var(--was-tinta);
+}

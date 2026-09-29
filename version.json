@@ -1,4 +1,4 @@
 {
-  "version": "1.2.0",
-  "notas": "Nueva pagina de Ajustes, mas ordenada: actualizaciones, WhatsApp, busqueda, tus datos y panel."
+  "version": "1.2.1",
+  "notas": "Correccion: al actualizarse, el panel ya no se descoloca ni pierde el logo; aparece un aviso para refrescar cuando quieras. Busqueda automatica con ayuda (?)."
 }

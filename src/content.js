@@ -86,6 +86,25 @@
    * acumulando en la lista de Errores de chrome://extensions cada vez que se
    * guardaba una preferencia en una pestaña asi.
    */
+  /*
+   * La direccion de los archivos propios (logo, banderas) se lee una sola vez
+   * al arrancar. Cuando la extension se actualiza con esta pestaña abierta,
+   * esta copia del script pierde la conexion y chrome.runtime.getURL lanza
+   * un error: el panel se quedaba sin logo, con la flecha puesta y movido
+   * de sitio. Con la direccion ya guardada, sigue dibujandose igual.
+   */
+  const URL_EXT = chrome.runtime.getURL("");
+  const urlExt = (ruta) => URL_EXT + ruta;
+
+  // ¿Sigue conectada esta copia del script con la extension?
+  const extensionViva = () => {
+    try {
+      return !!chrome.runtime?.id;
+    } catch {
+      return false;
+    }
+  };
+
   const guardarLocal = (obj) => {
     try {
       chrome.storage.local.set(obj);
@@ -594,7 +613,7 @@
   };
   const iconoWaConBandera = (pais) =>
     '<span class="was-wa-bandera"><svg viewBox="0 0 16 16"><path fill="currentColor" d="' + BURBUJA_WA + '"/></svg>' +
-    '<img alt="" draggable="false" src="' + chrome.runtime.getURL("banderas/" + pais + ".svg") + '"></span>';
+    '<img alt="" draggable="false" src="' + urlExt("banderas/" + pais + ".svg") + '"></span>';
 
   const ICONO_DETENER =
     '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg>';
@@ -3118,7 +3137,7 @@
     return s;
   };
 
-  const interruptor = (etiqueta, clave, alCambiar) => {
+  const interruptor = (etiqueta, clave, alCambiar, ayuda) => {
     const fila = el("div", "was-switch-fila");
     const sw = el("button", "was-switch" + (prefs[clave] ? " was-on" : ""));
     sw.innerHTML = "<i></i>";
@@ -3130,6 +3149,12 @@
     });
     fila.appendChild(sw);
     fila.appendChild(el("span", null, etiqueta));
+    if (ayuda) {
+      const pista = el("span", "was-pista", "?");
+      pista.setAttribute("data-ayuda", ayuda);
+      pista.setAttribute("tabindex", "0");
+      fila.appendChild(pista);
+    }
     return fila;
   };
 
@@ -4473,20 +4498,27 @@
     const cab = el("div", "was-cab");
     cab.innerHTML =
       '<span class="was-marca"><img class="was-marca-logo" alt="" draggable="false" src="' +
-      chrome.runtime.getURL("icons/vyxen-128.png") +
+      urlExt("icons/vyxen-128.png") +
       '"><span class="was-marca-texto"><b>VYXEN</b>' +
       '<i><s></s>&#10022; V Y X E N &#10022;<s></s></i></span></span>';
 
     // Recogido es un circulo con la lupa; desplegado, la cabecera del panel.
     const plegar = el("button", "was-plegar");
+    const logoPlegado = el("img", "was-plegar-logo");
+    logoPlegado.alt = "Vyxen";
+    logoPlegado.draggable = false;
+    logoPlegado.src = urlExt("icons/vyxen-128.png");
+
     const pintarPlegar = () => {
       const cerrado = panel.classList.contains("was-plegado");
       // Recogido apunta a la izquierda ("sale de aqui"); desplegado, a la
       // derecha ("vuelve a su sitio"). Con la lupa se confundia con el
       // buscador de Meta, que esta justo al lado.
-      plegar.innerHTML = cerrado
-        ? '<img class="was-plegar-logo" alt="Vyxen" draggable="false" src="' + chrome.runtime.getURL("icons/vyxen-128.png") + '">'
-        : ICONOS.flechaDer;
+      // El logo es siempre el mismo elemento <img>: si la extension se
+      // actualiza con la pestaña abierta, volver a pedir la imagen falla,
+      // pero la que ya esta cargada se sigue viendo.
+      plegar.innerHTML = cerrado ? "" : ICONOS.flechaDer;
+      if (cerrado) plegar.appendChild(logoPlegado);
       plegar.title = cerrado ? "Abrir Vyxen" : "Recoger el panel";
       panel.title = cerrado ? "Vyxen — clic para abrir" : "";
     };
@@ -4517,7 +4549,12 @@
     cuerpo.appendChild(bFiltro);
 
     cuerpo.appendChild(
-      interruptor("Buscar sola al abrir la Biblioteca", "autoBusqueda")
+      interruptor(
+        "Busqueda automatica",
+        "autoBusqueda",
+        null,
+        "Al abrir o recargar una busqueda de la Biblioteca, empieza a cargar anuncios sola, sin tener que pulsar BUSCAR. Se detiene al llegar al maximo de anuncios o al tiempo configurado."
+      )
     );
 
     const bBusq = el(
@@ -4727,7 +4764,7 @@
       opciones: [["todas", "Todas"], ["facebook", "Facebook"], ["instagram", "Instagram"], ["messenger", "Messenger"], ["whatsapp", "WhatsApp"]],
     },
     soloSeguidos: { tipo: "si/no", texto: "Solo los que sigo", corto: "Solo seguidos" },
-    autoBusqueda: { tipo: "si/no", texto: "Buscar sola al abrir la Biblioteca", corto: "Buscar al abrir" },
+    autoBusqueda: { tipo: "si/no", texto: "Busqueda automatica", corto: "Busqueda automatica" },
     notificar: { tipo: "si/no", texto: "Notificacion al terminar", corto: "Notificacion" },
     guardados: {
       tipo: "accion", texto: "Anuncios guardados", corto: "Guardados",
@@ -4905,6 +4942,32 @@
     fondo.appendChild(caja);
     fondo.addEventListener("click", (e) => e.target === fondo && cerrar());
     document.body.appendChild(fondo);
+  };
+
+  /*
+   * Si la extension se actualizo con esta pestaña abierta, se avisa con una
+   * pastilla discreta en lugar de romper nada: lo cargado sigue a la vista y
+   * se puede seguir trabajando; lo que necesita la extension (el boton de
+   * WhatsApp, guardar anuncios...) vuelve a funcionar al refrescar.
+   */
+  let avisoActualizacionPuesto = false;
+  const vigilarActualizacion = () => {
+    const reloj = setInterval(() => {
+      if (extensionViva() || avisoActualizacionPuesto) return;
+      avisoActualizacionPuesto = true;
+      clearInterval(reloj);
+      const pastilla = el("div", "was-aviso-actualizada");
+      pastilla.innerHTML =
+        "<b>Vyxen se actualizo</b><span>Refresca la pagina cuando te venga bien. " +
+        "Lo que ya cargaste sigue aqui.</span>";
+      const cerrar = el("button", "was-aviso-cerrar", "&times;");
+      cerrar.title = "Ocultar";
+      cerrar.addEventListener("click", () => pastilla.remove());
+      const refrescar = el("button", "was-aviso-refrescar", "Refrescar");
+      refrescar.addEventListener("click", () => location.reload());
+      pastilla.append(refrescar, cerrar);
+      document.body.appendChild(pastilla);
+    }, 4000);
   };
 
   const crearBandejaRapida = () => {
@@ -5284,9 +5347,10 @@
       vigilarCambioDeBusqueda();
       configurarBuscadorInicial().finally(vigilarCategoriaSinElegir);
       pintar();
+      vigilarActualizacion();
 
       /*
-       * "Buscar sola al abrir la Biblioteca": al cargar (o recargar) una
+       * "Busqueda automatica": al cargar (o recargar) una
        * pagina de resultados, la busqueda arranca sola en cuanto aparecen
        * las primeras tarjetas, sin tener que pulsar BUSCAR cada vez.
        */

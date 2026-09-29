@@ -8,6 +8,13 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.2.1
+- Al actualizarse con la Biblioteca abierta, el panel ya no se descoloca ni
+  pierde el logo; sale un aviso "Vyxen se actualizo" para refrescar cuando
+  convenga, sin perder lo cargado.
+- "Buscar sola al abrir la Biblioteca" pasa a "Busqueda automatica" con un
+  icono ? que explica que hace.
+
 ## 1.2.0
 - Nueva pagina de Ajustes a pantalla completa, organizada por secciones:
   actualizaciones (con "Buscar ahora"), boton de WhatsApp, busqueda, tus
