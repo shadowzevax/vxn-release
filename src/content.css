@@ -94,11 +94,16 @@
   border-radius: 12px;
   /* !important porque la tarjeta trae su propia sombra y, sin esto, gana la
      suya y el halo no llega a verse. El color sale de Apariencia. */
+  /* Grosor (--was-halo-g), intensidad (--was-halo-i) y tamaño (--was-halo-t)
+     del brillo salen de Apariencia; 1 = el halo de siempre. */
   box-shadow:
-    0 0 0 1.5px rgba(var(--was-halo-rgb, 18, 217, 94), 0.9),
-    0 0 10px 1px rgba(var(--was-halo-rgb, 18, 217, 94), 0.5),
-    0 0 26px 6px rgba(var(--was-halo-rgb, 18, 217, 94), 0.28),
-    0 0 52px 16px rgba(var(--was-halo-rgb, 18, 217, 94), 0.12) !important;
+    0 0 0 var(--was-halo-g, 1.5px) rgba(var(--was-halo-rgb, 18, 217, 94), 0.9),
+    0 0 calc(10px * var(--was-halo-t, 1)) calc(1px * var(--was-halo-t, 1))
+      rgba(var(--was-halo-rgb, 18, 217, 94), calc(0.5 * var(--was-halo-i, 1))),
+    0 0 calc(26px * var(--was-halo-t, 1)) calc(6px * var(--was-halo-t, 1))
+      rgba(var(--was-halo-rgb, 18, 217, 94), calc(0.28 * var(--was-halo-i, 1))),
+    0 0 calc(52px * var(--was-halo-t, 1)) calc(16px * var(--was-halo-t, 1))
+      rgba(var(--was-halo-rgb, 18, 217, 94), calc(0.12 * var(--was-halo-i, 1))) !important;
 }
 
 /* Anuncio parado: en rojo se distingue de un vistazo entre los activos. */

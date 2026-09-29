@@ -37,6 +37,11 @@
     waSoloCta: true, // solo los anuncios cuyo CTA dice WhatsApp
     colorBorde: "#12d95e",
     tamCopias: 16,
+    // Halo de las tarjetas que escalan: intensidad y tamaño del brillo (%),
+    // y grosor del borde (px).
+    haloIntensidad: 100,
+    haloTamano: 100,
+    haloGrosor: 1.5,
     ocultarFiltrados: true, // los que no pasan el filtro no se muestran
     plegado: true, // el panel arranca recogido para no estorbar
     rapidaPlegada: true, // y la bandeja rapida, tambien
@@ -3051,6 +3056,9 @@
     raiz.setProperty("--was-halo-rgb", aRgb(prefs.colorBorde));
     raiz.setProperty("--was-halo", prefs.colorBorde);
     raiz.setProperty("--was-copias-tam", prefs.tamCopias + "px");
+    raiz.setProperty("--was-halo-i", String((prefs.haloIntensidad ?? 100) / 100));
+    raiz.setProperty("--was-halo-t", String((prefs.haloTamano ?? 100) / 100));
+    raiz.setProperty("--was-halo-g", (prefs.haloGrosor ?? 1.5) + "px");
   };
 
   const control = (etiqueta, contenido) => {
@@ -4334,10 +4342,49 @@
     cont.append(rango, num, el("span", "was-unidad", "px"));
     c.appendChild(control('Tamaño del texto "N anuncios"', cont));
 
+    /*
+     * Halo: tres deslizadores con su numero al lado. Cada cambio se ve al
+     * momento en las tarjetas (van como variables CSS en la raiz).
+     */
+    const deslizadorHalo = (etiqueta, clave, min, max, paso, unidad) => {
+      const fila = el("div", "was-fila");
+      const r = el("input");
+      r.type = "range";
+      r.min = min;
+      r.max = max;
+      r.step = paso;
+      const n = el("input", "was-num");
+      n.type = "number";
+      n.min = min;
+      n.max = max;
+      n.step = paso;
+      const poner = (v) => {
+        const valor = Math.min(max, Math.max(min, Number(v)));
+        if (Number.isNaN(valor)) return;
+        prefs[clave] = valor;
+        r.value = valor;
+        n.value = valor;
+        guardarPrefs();
+        aplicarApariencia();
+      };
+      r.value = n.value = prefs[clave] ?? PREFS_DEF[clave];
+      r.addEventListener("input", (e) => poner(e.target.value));
+      n.addEventListener("input", (e) => poner(e.target.value));
+      fila.append(r, n, el("span", "was-unidad", unidad));
+      c.appendChild(control(etiqueta, fila));
+      return poner;
+    };
+    const ponerIntensidad = deslizadorHalo("Intensidad del brillo del halo", "haloIntensidad", 0, 250, 5, "%");
+    const ponerTamano = deslizadorHalo("Tamaño del brillo del halo", "haloTamano", 0, 250, 5, "%");
+    const ponerGrosor = deslizadorHalo("Grosor del borde del halo", "haloGrosor", 0, 6, 0.5, "px");
+
     const restaurar = el("button", "was-enlace", "Restaurar valores por defecto");
     restaurar.addEventListener("click", () => {
       fijarColor(PREFS_DEF.colorBorde, false);
       fijar(PREFS_DEF.tamCopias);
+      ponerIntensidad(PREFS_DEF.haloIntensidad);
+      ponerTamano(PREFS_DEF.haloTamano);
+      ponerGrosor(PREFS_DEF.haloGrosor);
     });
     c.appendChild(restaurar);
 
