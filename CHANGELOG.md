@@ -8,6 +8,12 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.9.1
+
+- Guardados: "+ Nueva etiqueta" como primera opcion del selector de
+  etiquetas (se puede crear aunque aun no tenga anuncios) y boton "Eliminar"
+  en la barra de la etiqueta (la quita de los anuncios, sin borrarlos).
+
 ## 1.9.0
 
 - Guardados: al elegir una etiqueta, se puede renombrar (cambia en todos los

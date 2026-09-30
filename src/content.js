@@ -2181,6 +2181,7 @@
   const todasLasEtiquetasGuardadas = () => {
     const s = new Set();
     for (const f of Object.values(guardados)) for (const e of f.etiquetas || []) s.add(e);
+    for (const e of Object.keys(configEtiquetas)) s.add(e);
     return [...s].sort((x, y) => x.localeCompare(y));
   };
 
@@ -4209,7 +4210,9 @@
     const todasLasEtiquetas = () => {
       const s = new Set();
       for (const id of ids) for (const e of datoDe(id).etiquetas) s.add(e);
-      return [...s].sort();
+      // Tambien las creadas desde aqui que aun no tienen anuncios.
+      for (const e of Object.keys(configEtiquetas)) s.add(e);
+      return [...s].sort((x, y) => x.localeCompare(y));
     };
 
     const maxDias = Math.max(1, ...ids.map((id) => datoDe(id).dias));
@@ -4252,6 +4255,11 @@
     const refrescarOpcionesEtiqueta = () => {
       const actual = etiquetaSel.value;
       etiquetaSel.innerHTML = "";
+      // Primera opcion: crear una etiqueta nueva.
+      const nueva = el("option");
+      nueva.value = "__nueva__";
+      nueva.textContent = "+ Nueva etiqueta";
+      etiquetaSel.appendChild(nueva);
       const todas = el("option");
       todas.value = "";
       todas.textContent = "Todas las etiquetas";
@@ -4263,8 +4271,7 @@
         etiquetaSel.appendChild(o);
       }
       etiquetaSel.value = [...etiquetaSel.options].some((o) => o.value === actual) ? actual : "";
-      const hayEtiquetas = etiquetaSel.options.length > 1;
-      etiquetaSel.classList.toggle("was-oculto", !hayEtiquetas);
+      // Siempre visible: junto a el esta "+ Nueva etiqueta".
     };
     refrescarOpcionesEtiqueta();
     filtros.appendChild(etiquetaSel);
@@ -4274,6 +4281,43 @@
      * todos los anuncios que la llevan) y ordenar a mano sus anuncios
      * arrastrandolos. Cada etiqueta recuerda su configuracion.
      */
+    let etiquetaAnterior = "";
+    etiquetaSel.addEventListener("focus", () => (etiquetaAnterior = etiquetaSel.value));
+    etiquetaSel.addEventListener("change", (ev) => {
+      if (etiquetaSel.value !== "__nueva__") return;
+      ev.stopImmediatePropagation(); // que no filtre por "__nueva__"
+      etiquetaSel.value = etiquetaAnterior === "__nueva__" ? "" : etiquetaAnterior;
+      const entrada = el("input", "was-mural-etiqueta-input");
+      entrada.placeholder = "Nombre de la nueva etiqueta";
+      etiquetaSel.replaceWith(entrada);
+      entrada.focus();
+      let hecho = false;
+      const terminar = (crear) => {
+        if (hecho) return;
+        hecho = true;
+        const nombre = entrada.value.trim().replace(/\s+/g, " ");
+        entrada.replaceWith(etiquetaSel);
+        if (!crear || !nombre) return;
+        if (!todasLasEtiquetas().includes(nombre)) {
+          confDe(nombre);
+          guardarConfigEtiquetas();
+          aviso('Etiqueta "' + nombre + '" creada. Asignala con "Editar etiquetas" en cada anuncio.');
+        }
+        refrescarOpcionesEtiqueta();
+        etiquetaSel.value = nombre;
+        ultimoOrdenMural = null;
+        aplicarFiltroMural();
+      };
+      entrada.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") terminar(true);
+        if (ev.key === "Escape") {
+          ev.stopPropagation();
+          terminar(false);
+        }
+      });
+      entrada.addEventListener("blur", () => terminar(true));
+    });
+
     const barraEtiqueta = el("div", "was-mural-etiqueta-barra was-oculto");
     const nombreEtq = el("b", "was-mural-etiqueta-nombre");
     const renombrar = el("button", "was-mini was-mini-suave", "Renombrar");
@@ -4281,7 +4325,23 @@
     manualSw.innerHTML = "<i></i>";
     const manualTxt = el("span", "was-mural-etiqueta-manual", "Orden personalizado");
     const pistaManual = el("span", "was-mural-etiqueta-pista", "Arrastra las tarjetas para ordenarlas");
-    barraEtiqueta.append(el("span", null, "Etiqueta:"), nombreEtq, renombrar, manualSw, manualTxt, pistaManual);
+    const eliminarEtq = el("button", "was-mini was-mini-quitar", "Eliminar");
+    barraEtiqueta.append(el("span", null, "Etiqueta:"), nombreEtq, renombrar, eliminarEtq, manualSw, manualTxt, pistaManual);
+    eliminarEtq.addEventListener("click", () => {
+      const e = etiquetaSel.value;
+      if (!e) return;
+      const con = Object.values(guardados).filter((f) => f.etiquetas?.includes(e));
+      if (!confirm('¿Eliminar la etiqueta "' + e + '"?' + (con.length ? " Se quitara de " + con.length + " anuncios (los anuncios no se borran)." : ""))) return;
+      for (const f of con) f.etiquetas = f.etiquetas.filter((x) => x !== e);
+      delete configEtiquetas[e];
+      guardarGuardados();
+      guardarConfigEtiquetas();
+      for (const t of tarjetaPorId.values()) t._pintarEtiquetas?.();
+      refrescarOpcionesEtiqueta();
+      etiquetaSel.value = "";
+      ultimoOrdenMural = null;
+      aplicarFiltroMural();
+    });
     filtros.appendChild(barraEtiqueta);
 
     const confDe = (e) => configEtiquetas[e] || (configEtiquetas[e] = { manual: false, orden: [] });

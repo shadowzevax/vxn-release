@@ -1,4 +1,4 @@
 {
-  "version": "1.9.0",
-  "notas": "Renombrar etiquetas y orden personalizado por etiqueta; sincronizacion entre pestanas corregida."
+  "version": "1.9.1",
+  "notas": "Crear y eliminar etiquetas desde Guardados."
 }
