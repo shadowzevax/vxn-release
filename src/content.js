@@ -85,6 +85,12 @@
     multiDescargaConTexto: false,
     // Accesos de la bandeja rapida (ids de ACCESOS); null = predeterminados.
     accesosRapidos: null,
+    // Pausas al azar y frenos ante verificaciones para evitar bloqueos.
+    modoSeguro: true,
+    // Avisar cuando un anunciante vigilado publica anuncios nuevos.
+    vigilarAnunciantes: false,
+    // Enviar al autor los fallos que detecte la extension.
+    enviarErrores: true,
     version: VERSION_PREFS,
   };
 
@@ -1809,6 +1815,7 @@
         ["Buscar anuncios de este anunciante", () => abrir(buscarAnunciante(a.paginaId))],
         ["URL del anuncio en la Biblioteca", () => abrir(bibliotecaUrl(a.id))],
         ["Buscar anuncios similares", () => buscarSimilares(a)],
+        ["Vigilar este anunciante", () => alternarVigilado(a)],
       ])
     );
 
@@ -2330,6 +2337,47 @@
 
   // Mismo anunciante: misma pagina, o el mismo nombre (hay anunciantes con
   // varias paginas que se llaman igual).
+  /*
+   * Estos tres ajustes los lee el service worker, que solo ve los ajustes
+   * comunes: aunque la pestaña tenga ajustes propios, se copian alli.
+   */
+  const guardarPrefsComunes = () => {
+    chrome.storage.local.get("prefs", (d) => {
+      const comunes = { ...(d.prefs || {}) };
+      for (const k of ["modoSeguro", "vigilarAnunciantes", "enviarErrores"]) comunes[k] = prefs[k];
+      guardarLocal({ prefs: comunes });
+    });
+  };
+
+  const alternarVigilado = (a) => {
+    if (!a.paginaId) return aviso("Este anuncio no tiene anunciante", true);
+    chrome.storage.local.get("vigilados", ({ vigilados = {} }) => {
+      if (vigilados[a.paginaId]) {
+        delete vigilados[a.paginaId];
+        guardarLocal({ vigilados });
+        return aviso("Dejaste de vigilar a " + (a.paginaNombre || "este anunciante"));
+      }
+      vigilados[a.paginaId] = { nombre: a.paginaNombre || "", foto: a.paginaFoto || "", desde: Date.now() };
+      guardarLocal({ vigilados });
+      aviso(
+        "Vigilando a " + (a.paginaNombre || "este anunciante") +
+          (prefs.vigilarAnunciantes ? "" : ' (activa "Vigilar anunciantes" en Configuracion)')
+      );
+    });
+  };
+
+  const verVigilados = () => {
+    chrome.storage.local.get("vigilados", ({ vigilados = {} }) => {
+      const lista = Object.entries(vigilados).map(([paginaId, v]) => ({
+        paginaId,
+        nombre: (v.nombre || "Anunciante") + (v.nuevos ? " · " + v.nuevos + " nuevos" : ""),
+        foto: v.foto,
+        urlBiblioteca: buscarAnunciante(paginaId),
+      }));
+      mostrarAnunciantes("Anunciantes vigilados", [{ titulo: "Vigilados", lista, clase: "posible" }]);
+    });
+  };
+
   const normNombre = (n) => (n || "").toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
 
   const buscarSimilares = async (a) => {
@@ -3254,7 +3302,20 @@
     auto.altura = 0;
     auto.quieto = 0;
     auto.esperandoDesde = 0;
-    auto.timer = setInterval(pasoScroll, Math.max(1, prefs.intervaloSeg) * 1000);
+    const base = Math.max(1, prefs.intervaloSeg) * 1000;
+    if (prefs.modoSeguro) {
+      // Ritmo irregular, como una persona: entre 70% y 150% del intervalo.
+      const siguiente = () => {
+        auto.timer = setTimeout(() => {
+          if (!auto.timer) return;
+          pasoScroll();
+          if (auto.timer) siguiente();
+        }, base * (0.7 + Math.random() * 0.8));
+      };
+      siguiente();
+    } else {
+      auto.timer = setInterval(pasoScroll, base);
+    }
     pasoScroll();
     actualizarPanel();
     pintarAccesos();
@@ -3262,6 +3323,7 @@
 
   const detenerBusqueda = () => {
     clearInterval(auto.timer);
+    clearTimeout(auto.timer);
     auto.timer = null;
     actualizarPanel();
     pintarAccesos();
@@ -4816,6 +4878,40 @@
     c.appendChild(interruptor("Carga acelerada", "cargaAcelerada"));
     c.appendChild(interruptor("Notificacion", "notificar"));
 
+    c.appendChild(interruptor("Modo seguro (evitar bloqueos)", "modoSeguro", guardarPrefsComunes));
+    c.appendChild(
+      el(
+        "div",
+        "was-ayuda",
+        "Espacia al azar las busquedas de WhatsApp, similares y la busqueda automatica, " +
+          "como lo haria una persona, y si Facebook o Google piden verificacion hace una " +
+          "pausa de 30 minutos. Desactivado va mas rapido, con mas riesgo de bloqueo."
+      )
+    );
+
+    c.appendChild(interruptor("Vigilar anunciantes", "vigilarAnunciantes", guardarPrefsComunes));
+    const verVig = el("button", "was-mini", "Ver vigilados");
+    verVig.addEventListener("click", verVigilados);
+    c.appendChild(
+      el(
+        "div",
+        "was-ayuda",
+        'Marca anunciantes con Abrir > "Vigilar este anunciante". Cada 4 horas se revisan ' +
+          "y te llega una notificacion si publicaron anuncios nuevos."
+      )
+    );
+    c.appendChild(verVig);
+
+    c.appendChild(interruptor("Enviar informes de errores", "enviarErrores", guardarPrefsComunes));
+    c.appendChild(
+      el(
+        "div",
+        "was-ayuda",
+        "Si algo falla (por ejemplo, Meta cambia la Biblioteca), se avisa al autor para " +
+          "arreglarlo cuanto antes. Solo se envia el tipo de fallo y la version, nada de tus busquedas."
+      )
+    );
+
     c.appendChild(interruptor('Mantener siempre "Todos los anuncios"', "forzarTodosAnuncios"));
     c.appendChild(
       el(
@@ -5799,6 +5895,31 @@
 
   if (document.body) arrancar();
   else document.addEventListener("DOMContentLoaded", arrancar, { once: true });
+
+  /*
+   * Deteccion de fallos. Se avisa al usuario y se registra (ver
+   * registrarError en background.js) para que el autor se entere antes de
+   * que se lo cuenten.
+   */
+  const reportarError = (error, detalle, donde) => {
+    try {
+      chrome.runtime.sendMessage({ tipo: "registrarError", error, detalle: String(detalle || ""), donde: donde || "" }).catch(() => {});
+    } catch {}
+  };
+  window.addEventListener("error", (ev) => {
+    if (!soyLaVigente() || !(ev.filename || "").startsWith(URL_EXT)) return;
+    reportarError("panel", ev.message, (ev.filename || "").replace(URL_EXT, "") + ":" + ev.lineno);
+  });
+  // Hay tarjetas de anuncios en pantalla pero no se leyo ninguno: lo mas
+  // probable es que Meta cambiara la Biblioteca.
+  setTimeout(function revisarLectura() {
+    if (!soyLaVigente()) return;
+    const tarjetas = [...document.querySelectorAll("div")].filter((d) => d.childElementCount < 40 && RE_ID.test(d.innerText || "")).length;
+    if (tarjetas >= 3 && anuncios.size === 0) {
+      reportarError("sin-lectura", "Hay tarjetas pero no se leyo ningun anuncio", location.pathname);
+      aviso("Vyxen no pudo leer los anuncios de esta pagina. Se aviso a Rixius.", true);
+    }
+  }, 30000);
 
   chrome.runtime.onMessage.addListener((msg, _o, responder) => {
     // La pestaña de fondo de "Buscar anuncios similares" entrega lo leido.

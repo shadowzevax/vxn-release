@@ -226,7 +226,8 @@ const solicitudes = new Map(); // solicitud -> { cancelada, pestanas: Set }
 
 const abrirPestanaFondo = async (sol, url) => {
   if (sol && sol.cancelada) throw new Error("cancelada");
-  const pestana = await chrome.tabs.create({ url, active: false });
+  await turnoSeguro(url);
+  const pestana = await crearPestanaVigilada(url);
   if (sol) sol.pestanas.add(pestana.id);
   return pestana;
 };
@@ -559,6 +560,7 @@ async function intentarPublicacionOrganica(copy, titulo) {
     if (u.protocol !== "https:") continue;
 
     try {
+      await turnoSeguro(url);
       const r = await fetch(url, { credentials: "include" });
       if (!r.ok) continue;
       const html = await r.text();
@@ -586,6 +588,7 @@ async function intentarPublicacionOrganica(copy, titulo) {
 async function intentarInstagram(usuario) {
   if (!usuario) return null;
   try {
+    await turnoSeguro("https://www.instagram.com/");
     const r = await fetch("https://www.instagram.com/" + usuario + "/", { credentials: "omit" });
     if (!r.ok) return null;
     const html = await r.text();
@@ -677,7 +680,8 @@ function paginaAusente() {
 async function abrirYRevisar(url, func, args, esperaCargaMs) {
   let pestana;
   try {
-    pestana = await chrome.tabs.create({ url, active: false });
+    await turnoSeguro(url);
+    pestana = await crearPestanaVigilada(url);
     await esperarCarga(pestana.id);
     const [salida] = await chrome.scripting.executeScript({
       target: { tabId: pestana.id },
@@ -1016,7 +1020,8 @@ async function contarAnuncios(paginaId) {
 
   let pestana;
   try {
-    pestana = await chrome.tabs.create({ url, active: false });
+    await turnoSeguro(url);
+    pestana = await crearPestanaVigilada(url);
     await esperarCarga(pestana.id);
 
     const [salida] = await chrome.scripting.executeScript({
@@ -1214,13 +1219,14 @@ async function buscarSimilares(frase, avisar = () => {}) {
 }
 
 async function buscarSimilaresPasada(frase, tipo, avisar) {
+  await turnoSeguro("https://www.facebook.com/");
   const url =
     "https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=ALL&media_type=all" +
     "&q=" + encodeURIComponent(frase) + "&search_type=" + tipo + "#vyxen-similares";
   let pestana;
   const volcar = () => chrome.tabs.sendMessage(pestana.id, { tipo: "volcarAnuncios" }).catch(() => null);
   try {
-    pestana = await chrome.tabs.create({ url, active: false });
+    pestana = await crearPestanaVigilada(url);
     await esperarCarga(pestana.id);
     let lista = null;
     avisar({ anuncios: [], texto: "Abriendo la Biblioteca..." });
@@ -1232,7 +1238,8 @@ async function buscarSimilaresPasada(frase, tipo, avisar) {
     const TANDAS = 4;
     for (let i = 0; i < TANDAS; i++) {
       await chrome.scripting.executeScript({ target: { tabId: pestana.id }, func: () => window.scrollTo(0, document.body.scrollHeight) }).catch(() => {});
-      await new Promise((r) => setTimeout(r, 1800));
+      const pausa = (await modoSeguro()) ? azar(2400, 4800) : 1800;
+      await new Promise((r) => setTimeout(r, pausa));
       lista = (await volcar()) || lista;
       avisar({
         anuncios: lista || [],
@@ -1278,3 +1285,182 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   await chrome.storage.local.set({ versionInyectada: actual });
   if (versionInyectada) inyectarEnPestanasAbiertas();
 })();
+
+
+/* ===================== Modo seguro ===================== */
+/*
+ * Activado (por defecto), las acciones que tocan Facebook, Google o
+ * Instagram se espacian con pausas al azar, como lo haria una persona, y si
+ * alguno pide verificacion (checkpoint, captcha) se hace una pausa de 30
+ * minutos en vez de insistir. Desactivado, todo va a la velocidad de antes.
+ */
+const azar = (min, max) => Math.round(min + Math.random() * (max - min));
+
+async function modoSeguro() {
+  const { prefs } = await chrome.storage.local.get("prefs");
+  return prefs?.modoSeguro !== false;
+}
+
+const servicioDe = (url) => {
+  const h = (() => { try { return new URL(url).hostname; } catch { return ""; } })();
+  if (/google\./.test(h)) return "google";
+  if (/instagram\./.test(h)) return "instagram";
+  if (/facebook\.|fbcdn\./.test(h)) return "facebook";
+  return null;
+};
+
+const ultimoTurno = {};
+async function turnoSeguro(url) {
+  const servicio = servicioDe(url);
+  if (!servicio) return;
+  const clave = servicio + "BloqueadoHasta";
+  const bloqueo = (await chrome.storage.local.get(clave))[clave];
+  if (bloqueo && Date.now() < bloqueo) throw new Error("pausa-" + servicio);
+  if (!(await modoSeguro())) return;
+  // Una accion cada 2-6 s por servicio, nunca en rafaga. Se reserva el
+  // turno antes de esperar para que dos llamadas a la vez no coincidan.
+  const libre = Math.max(Date.now(), (ultimoTurno[servicio] || 0) + azar(2000, 6000));
+  ultimoTurno[servicio] = libre;
+  const espera = libre - Date.now();
+  if (espera > 0) await new Promise((r) => setTimeout(r, espera));
+}
+
+// Pestañas de fondo abiertas por la extension: si caen en una verificacion
+// de Facebook o un captcha de Google, se pausa ese servicio.
+const pestanasPropias = new Set();
+async function crearPestanaVigilada(url) {
+  const t = await chrome.tabs.create({ url, active: false });
+  pestanasPropias.add(t.id);
+  return t;
+}
+chrome.tabs.onRemoved.addListener((id) => pestanasPropias.delete(id));
+chrome.tabs.onUpdated.addListener(async (id, info) => {
+  if (!info.url || !pestanasPropias.has(id)) return;
+  let servicio = null;
+  if (/facebook\.com\/(checkpoint|login)/.test(info.url)) servicio = "facebook";
+  else if (/google\.[^/]+\/sorry/.test(info.url)) servicio = "google";
+  else if (/instagram\.com\/(challenge|accounts\/login)/.test(info.url)) servicio = "instagram";
+  if (!servicio) return;
+  await chrome.storage.local.set({ [servicio + "BloqueadoHasta"]: Date.now() + 30 * 60 * 1000 });
+  registrarError("bloqueo-" + servicio, "Pidio verificacion; pausa de 30 min", "");
+  chrome.tabs.remove(id).catch(() => {});
+});
+
+/* ===================== Registro de errores ===================== */
+/*
+ * Los fallos que detecta la extension se guardan aqui (se ven en Ajustes) y,
+ * si hay direccion configurada y el usuario no lo desactivo, se envian al
+ * autor. Solo va: tipo, detalle tecnico, version y navegador. Cada fallo
+ * igual se envia como mucho una vez cada 6 horas.
+ */
+const URL_ERRORES = "";
+
+async function registrarError(tipo, detalle, donde) {
+  const version = chrome.runtime.getManifest().version;
+  const clave = tipo + "|" + String(detalle).slice(0, 200);
+  const { errores = {} } = await chrome.storage.local.get("errores");
+  const e = errores[clave] || { tipo, detalle: String(detalle).slice(0, 500), veces: 0, primero: Date.now() };
+  e.veces++;
+  e.ultimo = Date.now();
+  e.version = version;
+  e.donde = donde || "";
+  errores[clave] = e;
+  const lista = Object.entries(errores).sort((a, b) => b[1].ultimo - a[1].ultimo).slice(0, 60);
+  await chrome.storage.local.set({ errores: Object.fromEntries(lista) });
+
+  const { prefs } = await chrome.storage.local.get("prefs");
+  if (!URL_ERRORES || prefs?.enviarErrores === false) return;
+  if (e.enviado && Date.now() - e.enviado < 6 * 3600 * 1000) return;
+  e.enviado = Date.now();
+  await chrome.storage.local.set({ errores: Object.fromEntries(lista) });
+  fetch(URL_ERRORES, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({ tipo, detalle: e.detalle, donde: e.donde, veces: e.veces, version, navegador: navigator.userAgent }),
+  }).catch(() => {});
+}
+
+self.addEventListener("error", (ev) => registrarError("fondo", ev.message, (ev.filename || "") + ":" + (ev.lineno || "")));
+self.addEventListener("unhandledrejection", (ev) => registrarError("fondo-promesa", ev.reason?.message || ev.reason, ""));
+
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg?.tipo === "registrarError") registrarError(msg.error, msg.detalle, msg.donde);
+});
+
+/* ===================== Vigilar anunciantes ===================== */
+/*
+ * Con el interruptor "Vigilar anunciantes" activo, cada 4 horas se revisan
+ * los anunciantes marcados (en una pestaña de fondo, de uno en uno) y se
+ * avisa con una notificacion si publicaron anuncios nuevos.
+ */
+chrome.alarms.create("revisarVigilados", { periodInMinutes: 240, delayInMinutes: 5 });
+chrome.alarms.onAlarm.addListener((a) => {
+  if (a.name === "revisarVigilados") revisarVigilados();
+});
+
+let revisandoVigilados = false;
+async function revisarVigilados() {
+  const { prefs, vigilados = {} } = await chrome.storage.local.get(["prefs", "vigilados"]);
+  if (!prefs?.vigilarAnunciantes || revisandoVigilados) return;
+  revisandoVigilados = true;
+  try {
+    for (const [paginaId, v] of Object.entries(vigilados)) {
+      let lista;
+      try {
+        lista = await leerAnunciosDe(paginaId);
+      } catch {
+        break; // servicio en pausa: se reintenta en la siguiente vuelta
+      }
+      if (!lista) continue;
+      const conocidos = new Set(v.conocidos || []);
+      const nuevos = lista.filter((x) => x.activo !== false && !conocidos.has(x.id));
+      const actual = (await chrome.storage.local.get("vigilados")).vigilados || {};
+      if (!actual[paginaId]) continue; // lo dejaron de vigilar mientras tanto
+      actual[paginaId].conocidos = [...new Set([...conocidos, ...lista.map((x) => x.id)])].slice(-2000);
+      actual[paginaId].revisado = Date.now();
+      if (v.conocidos && nuevos.length) actual[paginaId].nuevos = (actual[paginaId].nuevos || 0) + nuevos.length;
+      await chrome.storage.local.set({ vigilados: actual });
+      // La primera revision solo aprende lo que ya tenia: no avisa.
+      if (v.conocidos && nuevos.length) {
+        chrome.notifications.create("vigilado-" + paginaId + "-" + Date.now(), {
+          type: "basic",
+          iconUrl: "icons/vyxen-128.png",
+          title: (v.nombre || "Anunciante") + " publico anuncios nuevos",
+          message: nuevos.length + (nuevos.length === 1 ? " anuncio nuevo" : " anuncios nuevos") + ". Pulsa para verlos.",
+        });
+      }
+    }
+  } finally {
+    revisandoVigilados = false;
+  }
+}
+
+chrome.notifications.onClicked.addListener((id) => {
+  const m = id.match(/^vigilado-(\d+)-/);
+  if (!m) return;
+  chrome.tabs.create({
+    url: "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&view_all_page_id=" + m[1] + "&search_type=page",
+  });
+  chrome.notifications.clear(id);
+});
+
+async function leerAnunciosDe(paginaId) {
+  const url =
+    "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&view_all_page_id=" +
+    paginaId + "&search_type=page#vyxen-similares";
+  await turnoSeguro(url);
+  let pestana;
+  try {
+    pestana = await crearPestanaVigilada(url);
+    await esperarCarga(pestana.id);
+    let lista = null;
+    for (let i = 0; i < 20 && !(lista && lista.length); i++) {
+      await new Promise((r) => setTimeout(r, 800));
+      lista = await chrome.tabs.sendMessage(pestana.id, { tipo: "volcarAnuncios" }).catch(() => null);
+    }
+    return lista;
+  } finally {
+    if (pestana) chrome.tabs.remove(pestana.id).catch(() => {});
+  }
+}

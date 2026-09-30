@@ -8,6 +8,16 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.6.0
+
+- Modo seguro (activado por defecto): pausas al azar entre acciones en
+  Facebook, Google e Instagram, busqueda automatica con ritmo irregular y
+  pausa de 30 min si alguno pide verificacion.
+- Vigilar anunciantes (desactivado por defecto): Abrir > "Vigilar este
+  anunciante"; cada 4 h se revisan y llega una notificacion si hay anuncios nuevos.
+- Deteccion de fallos: aviso si Vyxen no logra leer los anuncios, y registro
+  de errores listo para enviarse al autor.
+
 ## 1.5.3
 
 - En las ventanas de anunciantes (similares, posibles, mismo anuncio), boton

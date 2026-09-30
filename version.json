@@ -1,4 +1,4 @@
 {
-  "version": "1.5.3",
-  "notas": "Nuevo boton Ver anuncio para abrir el anuncio exacto que coincidio."
+  "version": "1.6.0",
+  "notas": "Nuevo: modo seguro contra bloqueos, vigilar anunciantes y deteccion de fallos."
 }
