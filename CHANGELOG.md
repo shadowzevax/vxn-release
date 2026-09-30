@@ -8,6 +8,15 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.7.0
+
+- Sincronizacion entre pestañas: mover el circulo o los paneles, o cambiar
+  filtros y ajustes en una pestaña, se aplica al momento en las demas (salvo
+  las que tienen "Solo esta pestaña").
+- "Buscar anuncios similares" muestra en que paises se anuncia cada
+  anunciante encontrado, con los datos que ya trae la Biblioteca (sin
+  busquedas extra).
+
 ## 1.6.2
 
 - "Solo esta pestaña" ahora es de verdad solo de esa pestaña: las pestañas

@@ -449,6 +449,7 @@
     urlBiblioteca: buscarAnunciante(a.paginaId),
     // El anuncio concreto que coincidio (un anunciante puede vender varias cosas).
     urlAnuncio: a.id ? "https://www.facebook.com/ads/library/?id=" + a.id : "",
+    paises: [...(a.paises || [])],
   });
 
   const recalcularPosibles = () => {
@@ -2277,7 +2278,14 @@
           foto.loading = "lazy";
           foto.addEventListener("error", () => foto.remove(), { once: true });
           fila.appendChild(foto);
-          fila.appendChild(el("span", "was-fila-anunciante-nombre", anun.nombre));
+          const nombreEl = el("span", "was-fila-anunciante-nombre", anun.nombre);
+          if (anun.paises?.length) {
+            const p = el("small", "was-fila-paises");
+            p.textContent = anun.paises.join(" · ");
+            p.title = "Se anuncia en: " + anun.paises.join(", ");
+            nombreEl.appendChild(p);
+          }
+          fila.appendChild(nombreEl);
           if (anun.urlAnuncio) {
             const verAnuncio = el("button", "was-mini was-mini-anuncio", "Ver anuncio");
             verAnuncio.addEventListener("click", () => abrir(anun.urlAnuncio));
@@ -2396,11 +2404,19 @@
         revisados++;
         if (!x.paginaId || x.paginaId === a.paginaId) continue;
         if (nombrePropio && normNombre(x.paginaNombre) === nombrePropio) continue;
+        const unir = (mapa) => {
+          const previo = mapa.get(x.paginaId);
+          const nuevo = datosAnunciante(x);
+          if (previo) nuevo.paises = [...new Set([...previo.paises, ...nuevo.paises])];
+          mapa.set(x.paginaId, nuevo);
+        };
         if (huella && huellaOferta(x) === huella) {
-          exactos.set(x.paginaId, datosAnunciante(x));
+          const antes = posibles.get(x.paginaId);
+          unir(exactos);
+          if (antes) exactos.get(x.paginaId).paises = [...new Set([...antes.paises, ...exactos.get(x.paginaId).paises])];
           posibles.delete(x.paginaId);
         } else if (!exactos.has(x.paginaId) && parecido(propias, palabrasOferta(x)) >= UMBRAL_PARECIDO) {
-          posibles.set(x.paginaId, datosAnunciante(x));
+          unir(posibles);
         }
       }
     };
@@ -5127,6 +5143,21 @@
       e.preventDefault();
     });
 
+    // Si se mueve en otra pestaña, aqui se coloca igual.
+    chrome.storage.onChanged.addListener((cambios, zona) => {
+      const pos = zona === "local" && cambios[claveGuardado]?.newValue;
+      if (!pos || pulsado || !soyLaVigente()) return;
+      nodo.style.left = pos.left;
+      nodo.style.top = pos.top;
+      nodo.style.right = "auto";
+      nodo.style.bottom = "auto";
+      requestAnimationFrame(() => {
+        const caja = nodo.getBoundingClientRect();
+        if (caja.right > window.innerWidth) nodo.style.left = Math.max(0, window.innerWidth - caja.width) + "px";
+        if (caja.bottom > window.innerHeight) nodo.style.top = Math.max(0, window.innerHeight - caja.height) + "px";
+      });
+    });
+
     document.addEventListener("mouseup", () => {
       if (!pulsado) return;
       pulsado = false;
@@ -5933,13 +5964,31 @@
     }
   }, 30000);
 
+  /*
+   * Lo que se cambia en una pestaña (filtros, colores, accesos...) se aplica
+   * al momento en las demas, salvo en las que llevan ajustes propios.
+   */
+  chrome.storage.onChanged.addListener((cambios, zona) => {
+    const nuevas = zona === "local" && cambios.prefs?.newValue;
+    if (!nuevas || MODO_SIMILARES || prefs.configPorPestana || !soyLaVigente()) return;
+    if (JSON.stringify(nuevas) === JSON.stringify({ ...prefs, configPorPestana: nuevas.configPorPestana })) return;
+    prefs = { ...PREFS_DEF, ...nuevas, configPorPestana: false };
+    try {
+      aplicarApariencia();
+      aplicarTonoPestana();
+      pintarAccesos();
+      actualizarBandejaRapida();
+      pintar();
+    } catch (e) {}
+  });
+
   chrome.runtime.onMessage.addListener((msg, _o, responder) => {
     // La pestaña de fondo de "Buscar anuncios similares" entrega lo leido.
     if (msg.tipo === "volcarAnuncios") {
       responder(
         [...anuncios.values()].map((x) => ({
           id: x.id, paginaId: x.paginaId, paginaNombre: x.paginaNombre, paginaFoto: x.paginaFoto,
-          cuerpo: x.cuerpo, titulo: x.titulo, activo: x.activo,
+          cuerpo: x.cuerpo, titulo: x.titulo, activo: x.activo, paises: x.paises || [],
         }))
       );
       return;

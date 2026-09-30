@@ -1,4 +1,4 @@
 {
-  "version": "1.6.2",
-  "notas": "Corregido: Solo esta pestana ya no se activa en las pestanas nuevas."
+  "version": "1.7.0",
+  "notas": "Nuevo: posiciones y ajustes sincronizados entre pestanas, y paises en anuncios similares."
 }
