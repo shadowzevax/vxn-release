@@ -8,6 +8,10 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.8.2
+
+- Los "?" de la configuracion quedan todos alineados a la derecha.
+
 ## 1.8.1
 
 - Configuracion mas limpia: las explicaciones pasan a un "?" junto a cada

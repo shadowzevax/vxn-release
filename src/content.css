@@ -2617,3 +2617,13 @@ html.was-tema-pestana .was-rapida {
   content-visibility: auto;
   contain-intrinsic-size: auto 900px;
 }
+
+/* El texto ocupa el hueco y el "?" queda siempre alineado a la derecha. */
+.was-switch-fila > span:not(.was-pista) {
+  flex: 1;
+  min-width: 0;
+}
+
+.was-switch-fila .was-pista {
+  margin-left: 0;
+}

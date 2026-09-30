@@ -5087,9 +5087,9 @@
       'Marca anunciantes con Abrir > "Vigilar este anunciante". Cada 4 horas se revisan y te llega una notificacion si publicaron anuncios nuevos.'
     );
     const verVig = el("button", "was-mini", "Ver vigilados");
-    verVig.style.marginLeft = "auto";
     verVig.addEventListener("click", verVigilados);
-    filaVig.appendChild(verVig);
+    // Antes del "?", para que todos los "?" queden en la misma columna.
+    filaVig.insertBefore(verVig, filaVig.querySelector(".was-pista"));
     c.appendChild(filaVig);
 
     c.appendChild(
