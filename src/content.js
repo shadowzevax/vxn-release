@@ -265,8 +265,9 @@
 
   const cargarMemoria = () =>
     new Promise((listo) => {
-      chrome.storage.local.get(["guardados", "vistos", "muralUltimaVisita"], (d) => {
+      chrome.storage.local.get(["guardados", "vistos", "muralUltimaVisita", "configEtiquetas"], (d) => {
         guardados = d.guardados || {};
+        configEtiquetas = d.configEtiquetas || {};
         vistos = new Set(d.vistos || []);
         ultimaVisitaMural = d.muralUltimaVisita || 0;
         memoriaLista = true;
@@ -275,6 +276,33 @@
     });
 
   const guardarGuardados = () => guardarLocal({ guardados });
+
+  /*
+   * Configuracion propia de cada etiqueta: { manual: bool, orden: [ids] }.
+   * Con "manual", los guardados de esa etiqueta se ven en el orden que el
+   * usuario dejo al arrastrarlos.
+   */
+  let configEtiquetas = {};
+  const guardarConfigEtiquetas = () => guardarLocal({ configEtiquetas });
+
+  // Lo guardado se comparte entre pestañas: si otra cambia algo (una
+  // estrella, una etiqueta renombrada), esta lo toma para no pisarlo luego.
+  chrome.storage.onChanged.addListener((cambios, zona) => {
+    if (zona !== "local") return;
+    if (cambios.guardados) {
+      // Se mezcla en el mismo objeto (sin reemplazarlo) para que lo que ya
+      // apunta a un guardado concreto, como las tarjetas del mural, siga valiendo.
+      const nuevos = cambios.guardados.newValue || {};
+      for (const id of Object.keys(guardados)) if (!(id in nuevos)) delete guardados[id];
+      for (const [id, f] of Object.entries(nuevos)) {
+        if (guardados[id]) {
+          for (const k of Object.keys(guardados[id])) if (!(k in f)) delete guardados[id][k];
+          Object.assign(guardados[id], f);
+        } else guardados[id] = f;
+      }
+    }
+    if (cambios.configEtiquetas) configEtiquetas = cambios.configEtiquetas.newValue || {};
+  });
 
   /*
    * Pide una miniatura propia (chica, en base64) de la imagen de un anuncio
@@ -3496,7 +3524,9 @@
       // Al apagar "Solo esta pestaña" se vuelve a la configuracion normal,
       // sin pisarla con los filtros que tenia esta pestaña.
       chrome.storage.local.get("prefs", (d) => {
-        prefs = { ...PREFS_DEF, ...(d.prefs || {}), configPorPestana: false };
+        prefs = { ...PREFS_DEF, ...(d.prefs || {}), plegado: prefs.plegado, rapidaPlegada: prefs.rapidaPlegada, configPorPestana: false };
+        refrescarControles();
+        aplicarFiltros();
         aplicarApariencia();
         aplicarTonoPestana();
         pintarAccesos();
@@ -3593,6 +3623,7 @@
     };
     rango.addEventListener("input", (e) => sincronizar(e.target.value));
     num.addEventListener("input", (e) => sincronizar(e.target.value));
+    rango.dataset.wasClave = num.dataset.wasClave = clave;
 
     fila.appendChild(rango);
     fila.appendChild(num);
@@ -3615,6 +3646,7 @@
       guardarPrefs();
       aplicarFiltros();
     });
+    s.dataset.wasClave = clave;
     return s;
   };
 
@@ -3665,6 +3697,7 @@
     const fila = el("div", "was-switch-fila");
     const sw = el("button", "was-switch" + (prefs[clave] ? " was-on" : ""));
     sw.innerHTML = "<i></i>";
+    sw.dataset.wasClave = clave;
     sw.addEventListener("click", () => {
       prefs[clave] = !prefs[clave];
       sw.classList.toggle("was-on", prefs[clave]);
@@ -4236,6 +4269,107 @@
     refrescarOpcionesEtiqueta();
     filtros.appendChild(etiquetaSel);
 
+    /*
+     * Al elegir una etiqueta aparece su propia barra: renombrarla (cambia en
+     * todos los anuncios que la llevan) y ordenar a mano sus anuncios
+     * arrastrandolos. Cada etiqueta recuerda su configuracion.
+     */
+    const barraEtiqueta = el("div", "was-mural-etiqueta-barra was-oculto");
+    const nombreEtq = el("b", "was-mural-etiqueta-nombre");
+    const renombrar = el("button", "was-mini was-mini-suave", "Renombrar");
+    const manualSw = el("button", "was-switch");
+    manualSw.innerHTML = "<i></i>";
+    const manualTxt = el("span", "was-mural-etiqueta-manual", "Orden personalizado");
+    const pistaManual = el("span", "was-mural-etiqueta-pista", "Arrastra las tarjetas para ordenarlas");
+    barraEtiqueta.append(el("span", null, "Etiqueta:"), nombreEtq, renombrar, manualSw, manualTxt, pistaManual);
+    filtros.appendChild(barraEtiqueta);
+
+    const confDe = (e) => configEtiquetas[e] || (configEtiquetas[e] = { manual: false, orden: [] });
+
+    const pintarBarraEtiqueta = () => {
+      const e = etiquetaSel.value;
+      barraEtiqueta.classList.toggle("was-oculto", !e);
+      if (!e) return;
+      nombreEtq.textContent = e;
+      const manual = !!configEtiquetas[e]?.manual;
+      manualSw.classList.toggle("was-on", manual);
+      pistaManual.classList.toggle("was-oculto", !manual);
+      ordenSel.disabled = manual;
+      ordenSel.title = manual ? "Esta etiqueta usa su orden personalizado" : "";
+    };
+
+    manualSw.addEventListener("click", () => {
+      const e = etiquetaSel.value;
+      if (!e) return;
+      const c = confDe(e);
+      c.manual = !c.manual;
+      // Al activarlo se parte del orden que se esta viendo ahora.
+      if (c.manual && !c.orden.length) {
+        c.orden = [...rejilla.children].map((t) => t.dataset.wasMuralId).filter((id) => datoDe(id).etiquetas.includes(e));
+      }
+      guardarConfigEtiquetas();
+      ultimoOrdenMural = null;
+      aplicarFiltroMural();
+    });
+
+    renombrar.addEventListener("click", () => {
+      const viejo = etiquetaSel.value;
+      if (!viejo) return;
+      const entrada = el("input", "was-mural-etiqueta-input");
+      entrada.value = viejo;
+      const ok = el("button", "was-mini", "Guardar");
+      const cancelar = el("button", "was-mini was-mini-suave", "Cancelar");
+      nombreEtq.replaceWith(entrada);
+      renombrar.replaceWith(ok);
+      ok.after(cancelar);
+      entrada.focus();
+      entrada.select();
+      const cerrar = () => {
+        entrada.replaceWith(nombreEtq);
+        ok.replaceWith(renombrar);
+        cancelar.remove();
+      };
+      const guardar = () => {
+        const nuevo = entrada.value.trim().replace(/\s+/g, " ");
+        cerrar();
+        if (!nuevo || nuevo === viejo) return;
+        const existe = todasLasEtiquetas().includes(nuevo);
+        if (existe && !confirm('Ya existe la etiqueta "' + nuevo + '". ¿Unir las dos?')) return;
+        let cambiados = 0;
+        for (const f of Object.values(guardados)) {
+          if (!f.etiquetas?.includes(viejo)) continue;
+          f.etiquetas = [...new Set(f.etiquetas.map((x) => (x === viejo ? nuevo : x)))];
+          cambiados++;
+        }
+        // La configuracion (y el orden) pasa al nombre nuevo.
+        if (configEtiquetas[viejo]) {
+          const antes = configEtiquetas[viejo];
+          const destino = configEtiquetas[nuevo];
+          configEtiquetas[nuevo] = destino
+            ? { manual: destino.manual || antes.manual, orden: [...new Set([...destino.orden, ...antes.orden])] }
+            : antes;
+          delete configEtiquetas[viejo];
+          guardarConfigEtiquetas();
+        }
+        guardarGuardados();
+        for (const t of tarjetaPorId.values()) t._pintarEtiquetas?.();
+        refrescarOpcionesEtiqueta();
+        etiquetaSel.value = nuevo;
+        ultimoOrdenMural = null;
+        aplicarFiltroMural();
+        aviso('Etiqueta renombrada a "' + nuevo + '" en ' + cambiados + (cambiados === 1 ? " anuncio" : " anuncios"));
+      };
+      ok.addEventListener("click", guardar);
+      cancelar.addEventListener("click", cerrar);
+      entrada.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") guardar();
+        if (ev.key === "Escape") {
+          ev.stopPropagation();
+          cerrar();
+        }
+      });
+    });
+
     const conSlider = (etiqueta, max) => {
       const cont = el("div", "was-mural-slider");
       const cab2 = el("div", "was-mural-slider-cab");
@@ -4424,6 +4558,7 @@
         filaEtiquetas.appendChild(mas);
       };
       pintarEtiquetas();
+      tarjeta._pintarEtiquetas = pintarEtiquetas;
       tarjeta.appendChild(filaEtiquetas);
 
       // Lo que cambio desde la ultima vez que se abrio esta pantalla: es lo
@@ -4574,10 +4709,22 @@
         if (pasa) visibles++;
       }
 
-      if (ordenSel.value !== ultimoOrdenMural) {
-        ultimoOrdenMural = ordenSel.value;
-        const comparador = ordenadoresExtra[ordenSel.value];
-        const orden = comparador ? [...ids].sort(comparador) : ids;
+      pintarBarraEtiqueta();
+      const manual = etiquetaQuiere && configEtiquetas[etiquetaQuiere]?.manual;
+      const claveOrden = manual ? "manual|" + etiquetaQuiere + "|" + configEtiquetas[etiquetaQuiere].orden.join(",") : ordenSel.value;
+      rejilla.classList.toggle("was-mural-arrastrable", !!manual);
+      for (const t of tarjetaPorId.values()) t.draggable = !!manual;
+      if (claveOrden !== ultimoOrdenMural) {
+        ultimoOrdenMural = claveOrden;
+        let orden;
+        if (manual) {
+          // Los que estan en el orden guardado, en ese orden; los nuevos, al final.
+          const pos = new Map(configEtiquetas[etiquetaQuiere].orden.map((id, i) => [id, i]));
+          orden = [...ids].sort((x, y) => (pos.has(x) ? pos.get(x) : 1e9) - (pos.has(y) ? pos.get(y) : 1e9) || guardadoEl(y) - guardadoEl(x));
+        } else {
+          const comparador = ordenadoresExtra[ordenSel.value];
+          orden = comparador ? [...ids].sort(comparador) : ids;
+        }
         orden.forEach((id) => {
           const t = tarjetaPorId.get(id);
           if (t) rejilla.appendChild(t);
@@ -4586,6 +4733,34 @@
 
       contador.textContent = visibles + " de " + ids.length;
     };
+
+    let arrastrada = null;
+    rejilla.addEventListener("dragstart", (ev) => {
+      const t = ev.target.closest?.(".was-mural-tarjeta");
+      if (!t || !t.draggable) return;
+      arrastrada = t;
+      t.classList.add("was-mural-arrastrando");
+      ev.dataTransfer.effectAllowed = "move";
+    });
+    rejilla.addEventListener("dragover", (ev) => {
+      if (!arrastrada) return;
+      ev.preventDefault();
+      const destino = ev.target.closest?.(".was-mural-tarjeta");
+      if (!destino || destino === arrastrada) return;
+      const r = destino.getBoundingClientRect();
+      const despues = ev.clientY > r.bottom - r.height / 3 || (ev.clientY > r.top + r.height / 3 && ev.clientX > r.left + r.width / 2);
+      destino[despues ? "after" : "before"](arrastrada);
+    });
+    rejilla.addEventListener("dragend", () => {
+      if (!arrastrada) return;
+      arrastrada.classList.remove("was-mural-arrastrando");
+      arrastrada = null;
+      const e = etiquetaSel.value;
+      if (!e) return;
+      confDe(e).orden = [...rejilla.children].map((t) => t.dataset.wasMuralId).filter((id) => datoDe(id).etiquetas.includes(e));
+      guardarConfigEtiquetas();
+      ultimoOrdenMural = "manual|" + e + "|" + configEtiquetas[e].orden.join(",");
+    });
 
     buscar.addEventListener("input", aplicarFiltroMural);
     estadoSel.addEventListener("change", aplicarFiltroMural);
@@ -4886,6 +5061,8 @@
     });
     hex.addEventListener("focus", () => hex.select());
 
+    color.dataset.wasClave = "colorBorde";
+    hex.dataset.wasClave = "colorBorde";
     fila.append(color, hex);
     c.appendChild(control("Color del borde de la tarjeta", fila));
 
@@ -4911,6 +5088,7 @@
     rango.addEventListener("input", (e) => fijar(e.target.value));
     num.addEventListener("input", (e) => fijar(e.target.value));
 
+    rango.dataset.wasClave = num.dataset.wasClave = "tamCopias";
     cont.append(rango, num, el("span", "was-unidad", "px"));
     c.appendChild(control('Tamaño del texto "N anuncios"', cont));
 
@@ -4940,6 +5118,7 @@
         aplicarApariencia();
       };
       r.value = n.value = prefs[clave] ?? PREFS_DEF[clave];
+      r.dataset.wasClave = n.dataset.wasClave = clave;
       r.addEventListener("input", (e) => poner(e.target.value));
       n.addEventListener("input", (e) => poner(e.target.value));
       fila.append(r, n, el("span", "was-unidad", unidad));
@@ -5031,11 +5210,16 @@
         if (auto.timer) auto.fin = Date.now() + prefs.detenerMin * 60000;
       });
     }
+    tope.dataset.wasClave = "maxAnuncios";
+    min.dataset.wasClave = "detenerMin";
+    grupo.dataset.wasRefrescar = "1";
+    grupo._wasRefrescar = pintarDetener;
     grupo.append(porAnuncios.fila, porTiempo.fila);
     pintarDetener();
     c.appendChild(grupo);
 
     const seg = el("input", "was-num");
+    seg.dataset.wasClave = "intervaloSeg";
     seg.type = "number";
     seg.min = 1;
     seg.value = prefs.intervaloSeg;
@@ -5088,9 +5272,11 @@
     );
     const verVig = el("button", "was-mini", "Ver vigilados");
     verVig.addEventListener("click", verVigilados);
-    // Antes del "?", para que todos los "?" queden en la misma columna.
-    filaVig.insertBefore(verVig, filaVig.querySelector(".was-pista"));
     c.appendChild(filaVig);
+    // Debajo, alineado con el texto del interruptor.
+    const filaVerVig = el("div", "was-fila-sub");
+    filaVerVig.appendChild(verVig);
+    c.appendChild(filaVerVig);
 
     c.appendChild(
       interruptor(
@@ -5745,6 +5931,7 @@
 
   // Salto grande de scroll sin que el usuario haya tocado nada.
   let scrollPrevio = window.scrollY;
+  let altoPrevio = document.documentElement.scrollHeight;
   let ultimaEntrada = 0;
   for (const t of ["wheel", "keydown", "mousedown", "touchstart"]) {
     window.addEventListener(t, () => (ultimaEntrada = Date.now()), { capture: true, passive: true });
@@ -5754,6 +5941,12 @@
     () => {
       const d = window.scrollY - scrollPrevio;
       scrollPrevio = window.scrollY;
+      // Si la pagina cambio mucho de alto (un filtro oculto o mostro
+      // tarjetas), el navegador recoloca el scroll solo: no es un fallo.
+      const alto = document.documentElement.scrollHeight;
+      const cambioAlto = Math.abs(alto - altoPrevio) > Math.abs(d) / 2;
+      altoPrevio = alto;
+      if (cambioAlto) return;
       if (Math.abs(d) > 2500 && !auto.timer && Date.now() - ultimaEntrada > 1500 && soyLaVigente()) {
         diagnostico("Salto de scroll sin tocar nada", { salto: Math.round(d) });
       }
@@ -6142,6 +6335,18 @@
     }
   }, 30000);
 
+  // Pone los controles abiertos (panel, configuracion) con los valores de prefs.
+  const refrescarControles = () => {
+    for (const n of document.querySelectorAll("[data-was-clave]")) {
+      if (n === document.activeElement) continue; // no pisar lo que se esta escribiendo
+      const v = prefs[n.dataset.wasClave];
+      if (n.classList.contains("was-switch")) n.classList.toggle("was-on", !!v);
+      else if (n.classList.contains("was-hex")) n.value = String(v || "").toUpperCase();
+      else if (v != null) n.value = v;
+    }
+    for (const n of document.querySelectorAll("[data-was-refrescar]")) n._wasRefrescar?.();
+  };
+
   /*
    * Lo que se cambia en una pestaña (filtros, colores, accesos...) se aplica
    * al momento en las demas, salvo en las que llevan ajustes propios.
@@ -6150,14 +6355,19 @@
     const nuevas = zona === "local" && cambios.prefs?.newValue;
     if (!nuevas || MODO_SIMILARES || prefs.configPorPestana || !soyLaVigente()) return;
     if (JSON.stringify(nuevas) === JSON.stringify({ ...prefs, configPorPestana: nuevas.configPorPestana })) return;
-    prefs = { ...PREFS_DEF, ...nuevas, configPorPestana: false };
+    // Lo que es de cada pestaña (panel abierto o recogido) no se copia.
+    const locales = { plegado: prefs.plegado, rapidaPlegada: prefs.rapidaPlegada };
+    prefs = { ...PREFS_DEF, ...nuevas, ...locales, configPorPestana: false };
     try {
+      refrescarControles();
       aplicarApariencia();
       aplicarTonoPestana();
       pintarAccesos();
+      aplicarFiltros();
       actualizarBandejaRapida();
-      pintar();
-    } catch (e) {}
+    } catch (e) {
+      reportarError("sincronizar", e.message);
+    }
   });
 
   chrome.runtime.onMessage.addListener((msg, _o, responder) => {

@@ -8,6 +8,20 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.9.0
+
+- Guardados: al elegir una etiqueta, se puede renombrar (cambia en todos los
+  anuncios que la llevan; si el nombre ya existe, se unen) y activar un orden
+  personalizado propio de esa etiqueta, arrastrando las tarjetas.
+- Sincronizacion entre pestañas corregida: los controles abiertos (filtros,
+  numeros, interruptores) se actualizan en las demas pestañas; el panel
+  abierto/recogido sigue siendo de cada pestaña. Apagar "Solo esta pestaña"
+  refresca bien los valores. Los guardados tambien se comparten al momento
+  (antes una pestaña podia pisar lo que cambio otra).
+- "Ver vigilados" pasa debajo del interruptor.
+- El diagnostico de "salto de scroll" ya no avisa cuando el salto lo causa un
+  filtro que oculta o muestra tarjetas.
+
 ## 1.8.2
 
 - Los "?" de la configuracion quedan todos alineados a la derecha.

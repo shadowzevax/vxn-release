@@ -2627,3 +2627,59 @@ html.was-tema-pestana .was-rapida {
 .was-switch-fila .was-pista {
   margin-left: 0;
 }
+
+/* Boton secundario bajo un interruptor, alineado con su texto (36px + 10px). */
+.was-fila-sub {
+  margin: -4px 0 6px 46px;
+}
+
+/* ===================== mural: barra de la etiqueta elegida ===================== */
+
+.was-mural-etiqueta-barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 13px;
+  background: #f4f6f9;
+  border-radius: 10px;
+}
+
+.was-mural-etiqueta-barra.was-oculto {
+  display: none;
+}
+
+.was-mural-etiqueta-nombre {
+  margin-right: 4px;
+}
+
+.was-mural-etiqueta-input {
+  padding: 5px 8px;
+  font: inherit;
+  border: 1px solid #c9ced6;
+  border-radius: 6px;
+}
+
+.was-mural-etiqueta-barra .was-switch {
+  margin-left: 12px;
+}
+
+.was-mural-etiqueta-manual {
+  font-weight: 600;
+}
+
+.was-mural-etiqueta-pista {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.was-mural-arrastrable .was-mural-tarjeta {
+  cursor: grab;
+}
+
+.was-mural-arrastrando {
+  opacity: 0.45;
+  outline: 2px dashed #8b5cf6;
+}
