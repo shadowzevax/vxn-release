@@ -8,6 +8,10 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.4.0
+- La busqueda automatica se detiene por cantidad de anuncios O por tiempo,
+  a eleccion; la opcion no elegida queda en gris y no cuenta.
+
 ## 1.3.2
 - Actualizacion sin refrescar mas suave: la vista se queda anclada en el
   anuncio que estabas mirando, las tarjetas no encogen (Meta ya no carga un

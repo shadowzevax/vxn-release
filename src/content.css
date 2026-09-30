@@ -2440,3 +2440,55 @@ html.was-tema-pestana .was-rapida {
   color: var(--was-tinta);
   border-color: var(--was-tinta);
 }
+
+/* ===================== detener la busqueda: por anuncios o por tiempo ===================== */
+
+.was-detener {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.was-detener-titulo {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.was-detener-opcion {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  border: 1.5px solid var(--was-tinta);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: opacity 0.15s, border-color 0.15s;
+}
+
+.was-detener-opcion input[type="radio"] {
+  flex: none;
+  margin: 0;
+  accent-color: var(--was-tinta);
+}
+
+.was-detener-texto {
+  flex: 1;
+  font-size: 12.5px;
+  line-height: 1.3;
+}
+
+.was-detener-opcion .was-num {
+  width: 74px;
+}
+
+/* La opcion no elegida: en gris y sin poder tocar su numero. */
+.was-detener-opcion.was-apagada {
+  opacity: 0.45;
+  border-color: #d8dee6;
+}
+
+.was-detener-opcion.was-apagada .was-num {
+  background: #f0f2f5;
+  cursor: not-allowed;
+}

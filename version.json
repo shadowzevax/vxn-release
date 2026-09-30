@@ -1,4 +1,4 @@
 {
-  "version": "1.3.2",
-  "notas": "Al actualizarse con la Biblioteca abierta, la vista ya no salta ni carga anuncios de mas: se queda donde estabas."
+  "version": "1.4.0",
+  "notas": "Configuracion de busqueda: elige si se detiene por cantidad de anuncios o por tiempo (la otra queda en gris)."
 }

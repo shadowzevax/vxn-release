@@ -57,6 +57,9 @@
     rapidaPlegada: true, // y la bandeja rapida, tambien
     autoBusqueda: false,
     detenerMin: 1,
+    // La busqueda automatica se detiene por UNA de las dos: "anuncios"
+    // (al llegar al maximo) o "tiempo" (a los minutos indicados).
+    detenerPor: "anuncios",
     intervaloSeg: 15,
     cargaAcelerada: false,
     notificar: true,
@@ -2953,7 +2956,7 @@
      * pagina), no con los datos recibidos: antes cortaba en ~980 aunque el
      * tope dijera 1000, porque llegan datos de anuncios que nunca se pintan.
      */
-    if (contadores.total >= prefs.maxAnuncios) {
+    if (prefs.detenerPor !== "tiempo" && contadores.total >= prefs.maxAnuncios) {
       avisadoTope = true;
       detenerBusqueda();
       actualizarBandejaRapida();
@@ -2974,7 +2977,7 @@
      * y se juntaban dos o tres lotes de ~30 anuncios de golpe, pasandose de
      * largo del tope.
      */
-    if (anuncios.size >= prefs.maxAnuncios) {
+    if (prefs.detenerPor !== "tiempo" && anuncios.size >= prefs.maxAnuncios) {
       avisadoTope = true;
       detenerBusqueda();
       actualizarBandejaRapida();
@@ -3000,7 +3003,7 @@
       setTimeout(() => window.scrollTo(0, alturaPagina()), 650);
     }
 
-    if (Date.now() > auto.fin) {
+    if (prefs.detenerPor === "tiempo" && Date.now() > auto.fin) {
       detenerBusqueda();
       aviso("Busqueda completa");
       pitido();
@@ -4485,6 +4488,36 @@
   const configBusqueda = () => {
     const c = el("div");
 
+    /*
+     * Detener por cantidad de anuncios O por tiempo, nunca las dos: no tiene
+     * sentido pedir 1000 anuncios y a la vez cortar a los 5 minutos. La que
+     * no esta elegida queda en gris y su numero no se puede tocar.
+     */
+    const grupo = el("div", "was-detener");
+    grupo.appendChild(el("div", "was-detener-titulo", "Detener la busqueda automatica:"));
+    const opcionDetener = (valor, etiqueta, crearEntrada) => {
+      const fila = el("label", "was-detener-opcion");
+      const radio = el("input");
+      radio.type = "radio";
+      radio.name = "was-detener";
+      radio.value = valor;
+      const entrada = crearEntrada();
+      fila.append(radio, el("span", "was-detener-texto", etiqueta), entrada);
+      return { fila, radio, entrada };
+    };
+
+    const tope = el("input", "was-num");
+    tope.type = "number";
+    tope.min = 50;
+    tope.step = 50;
+    tope.value = prefs.maxAnuncios;
+    tope.addEventListener("input", (e) => {
+      prefs.maxAnuncios = Math.max(50, Number(e.target.value) || 600);
+      avisadoTope = false;
+      guardarPrefs();
+    });
+    const porAnuncios = opcionDetener("anuncios", "Por cantidad de anuncios", () => tope);
+
     const min = el("input", "was-num");
     min.type = "number";
     min.min = 1;
@@ -4493,7 +4526,30 @@
       prefs.detenerMin = Number(e.target.value) || 5;
       guardarPrefs();
     });
-    c.appendChild(control("Detener automaticamente (minutos)", min));
+    const porTiempo = opcionDetener("tiempo", "Por tiempo (minutos)", () => min);
+
+    const pintarDetener = () => {
+      const tiempo = prefs.detenerPor === "tiempo";
+      porAnuncios.radio.checked = !tiempo;
+      porTiempo.radio.checked = tiempo;
+      porAnuncios.fila.classList.toggle("was-apagada", tiempo);
+      porTiempo.fila.classList.toggle("was-apagada", !tiempo);
+      tope.disabled = tiempo;
+      min.disabled = !tiempo;
+    };
+    for (const o of [porAnuncios, porTiempo]) {
+      o.radio.addEventListener("change", () => {
+        prefs.detenerPor = o.radio.value;
+        avisadoTope = false;
+        guardarPrefs();
+        pintarDetener();
+        // Si ya estaba buscando, el nuevo criterio cuenta desde ahora.
+        if (auto.timer) auto.fin = Date.now() + prefs.detenerMin * 60000;
+      });
+    }
+    grupo.append(porAnuncios.fila, porTiempo.fila);
+    pintarDetener();
+    c.appendChild(grupo);
 
     const seg = el("input", "was-num");
     seg.type = "number";
@@ -4509,24 +4565,12 @@
     });
     c.appendChild(control("Intervalo de desplazamiento (segundos)", seg));
 
-    const tope = el("input", "was-num");
-    tope.type = "number";
-    tope.min = 50;
-    tope.step = 50;
-    tope.value = prefs.maxAnuncios;
-    tope.addEventListener("input", (e) => {
-      prefs.maxAnuncios = Math.max(50, Number(e.target.value) || 600);
-      avisadoTope = false;
-      guardarPrefs();
-    });
-    c.appendChild(control("Maximo de anuncios en memoria", tope));
-
     const nota = el(
       "div",
       "was-ayuda",
-      "Pasados unos cientos de anuncios la Biblioteca se vuelve muy pesada: el " +
-        "tope corta la carga para que el navegador no se atasque. Al llegar, filtra " +
-        "o recarga la pagina."
+      "Con muchos cientos de anuncios la Biblioteca se vuelve pesada. Detener por " +
+        "cantidad evita que el navegador se atasque; lo que cargues despues a mano " +
+        "se sigue decorando."
     );
     c.appendChild(nota);
 
@@ -5248,7 +5292,7 @@
      * seguia hasta ~80 mientras se pintaba el lote). Solo detiene la
      * busqueda automatica: lo que se cargue a mano se sigue decorando.
      */
-    if (auto.timer && anuncios.size >= prefs.maxAnuncios) {
+    if (auto.timer && prefs.detenerPor !== "tiempo" && anuncios.size >= prefs.maxAnuncios) {
       avisadoTope = true;
       detenerBusqueda();
       actualizarBandejaRapida();
