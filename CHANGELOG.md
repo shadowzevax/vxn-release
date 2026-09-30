@@ -8,6 +8,11 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.8.1
+
+- Configuracion mas limpia: las explicaciones pasan a un "?" junto a cada
+  opcion (se ven al pasar el cursor), y se completan las que faltaban.
+
 ## 1.8.0
 
 - Pegar en el buscador de la Biblioteca texto con comillas: Meta lo rechazaba

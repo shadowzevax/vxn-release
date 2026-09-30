@@ -3559,9 +3559,11 @@
     raiz.setProperty("--was-halo-g", (prefs.haloGrosor ?? 1.5) + "px");
   };
 
-  const control = (etiqueta, contenido) => {
+  const control = (etiqueta, contenido, ayuda) => {
     const fila = el("div", "was-campo");
-    fila.appendChild(el("label", null, etiqueta));
+    const lab = el("label", null, etiqueta);
+    if (ayuda) lab.appendChild(pistaAyuda(ayuda));
+    fila.appendChild(lab);
     fila.appendChild(contenido);
     return fila;
   };
@@ -3652,6 +3654,13 @@
   });
   document.addEventListener("focusout", ocultarAyuda);
 
+  const pistaAyuda = (texto) => {
+    const pista = el("span", "was-pista", "?");
+    pista.setAttribute("data-ayuda", texto);
+    pista.setAttribute("tabindex", "0");
+    return pista;
+  };
+
   const interruptor = (etiqueta, clave, alCambiar, ayuda) => {
     const fila = el("div", "was-switch-fila");
     const sw = el("button", "was-switch" + (prefs[clave] ? " was-on" : ""));
@@ -3711,7 +3720,8 @@
           ["gte", "Mayor o igual"],
           ["lte", "Menor o igual"],
           ["eq", "Igual"],
-        ])
+        ]),
+        "Como se compara el numero de anuncios que usan el mismo contenido (las copias) con el minimo que pongas: mayor o igual, menor o igual o igual."
       )
     );
     c.appendChild(
@@ -3721,7 +3731,8 @@
           ["gte", "Mayor o igual"],
           ["lte", "Menor o igual"],
           ["eq", "Igual"],
-        ])
+        ]),
+        "Como se comparan los dias que lleva activo el anuncio con el minimo que pongas: mayor o igual, menor o igual o igual."
       )
     );
     c.appendChild(
@@ -3732,7 +3743,8 @@
           ["anuncios", "Cantidad de anuncios"],
           ["dias", "Tiempo de actividad"],
           ["nota", "Nota de ganador"],
-        ])
+        ]),
+        "Reordena las tarjetas de la pagina: por cantidad de copias, por dias activo o por la nota de ganador. Deshabilitado deja el orden de Meta."
       )
     );
 
@@ -3744,7 +3756,8 @@
           ["video", "Solo video"],
           ["imagen", "Solo imagen"],
           ["carrusel", "Carrusel o dinamico"],
-        ])
+        ]),
+        "Muestra solo anuncios de video, de imagen o carruseles/dinamicos."
       )
     );
 
@@ -3757,7 +3770,8 @@
           ["instagram", "Instagram"],
           ["messenger", "Messenger"],
           ["whatsapp", "WhatsApp"],
-        ])
+        ]),
+        "Muestra solo anuncios que salen en esa plataforma (Facebook, Instagram, Messenger...)."
       )
     );
 
@@ -3768,21 +3782,39 @@
           ["todos", "Todos"],
           ["whatsapp", "Solo a WhatsApp"],
           ["web", "Solo a una web"],
-        ])
+        ]),
+        "Muestra solo los anuncios que llevan a WhatsApp o solo los que llevan a una web, segun a donde mande su boton."
       )
     );
 
-    c.appendChild(interruptor("Solo los que sigo", "soloSeguidos", aplicarFiltros));
-
     c.appendChild(
-      interruptor("Boton de WhatsApp solo si el CTA lo dice", "waSoloCta", () => {
-        document.querySelectorAll("[data-was-id]").forEach((t) => delete t.dataset.wasId);
-        pintar();
-      })
+      interruptor(
+        "Solo los que sigo",
+        "soloSeguidos",
+        aplicarFiltros,
+        "Muestra solo los anuncios que guardaste con la estrella; el resto se oculta."
+      )
     );
 
     c.appendChild(
-      interruptor("Descarga multiple: incluir texto, titulo y descripcion (.txt)", "multiDescargaConTexto")
+      interruptor(
+        "Boton de WhatsApp solo si el CTA lo dice",
+        "waSoloCta",
+        () => {
+          document.querySelectorAll("[data-was-id]").forEach((t) => delete t.dataset.wasId);
+          pintar();
+        },
+        "Activado, el boton de WhatsApp sale solo en anuncios cuyo boton de accion lleva a WhatsApp. Desactivado, sale en todos (para buscar el numero aunque el anuncio lleve a una web)."
+      )
+    );
+
+    c.appendChild(
+      interruptor(
+        "Descarga multiple: incluir texto, titulo y descripcion (.txt)",
+        "multiDescargaConTexto",
+        null,
+        "Al descargar varios anuncios en un ZIP, agrega un .txt con el texto, titulo y descripcion de cada uno (uno solo si varios seguidos comparten exactamente el mismo texto)."
+      )
     );
 
     /*
@@ -4940,7 +4972,13 @@
      * no esta elegida queda en gris y su numero no se puede tocar.
      */
     const grupo = el("div", "was-detener");
-    grupo.appendChild(el("div", "was-detener-titulo", "Detener la busqueda automatica:"));
+    const tituloDetener = el("div", "was-detener-titulo", "Detener la busqueda automatica:");
+    tituloDetener.appendChild(
+      pistaAyuda(
+        "Elige UNA: al llegar a cierto numero de anuncios o a los minutos indicados. Con muchos cientos de anuncios la Biblioteca se vuelve pesada; detener por cantidad evita que el navegador se atasque. Lo que cargues despues a mano se sigue decorando."
+      )
+    );
+    grupo.appendChild(tituloDetener);
     const opcionDetener = (valor, etiqueta, crearEntrada) => {
       const fila = el("label", "was-detener-opcion");
       const radio = el("input");
@@ -5009,65 +5047,65 @@
         iniciarBusqueda();
       }
     });
-    c.appendChild(control("Intervalo de desplazamiento (segundos)", seg));
-
-    const nota = el(
-      "div",
-      "was-ayuda",
-      "Con muchos cientos de anuncios la Biblioteca se vuelve pesada. Detener por " +
-        "cantidad evita que el navegador se atasque; lo que cargues despues a mano " +
-        "se sigue decorando."
-    );
-    c.appendChild(nota);
-
-    c.appendChild(interruptor("Carga acelerada", "cargaAcelerada"));
-    c.appendChild(interruptor("Notificacion", "notificar"));
-
-    c.appendChild(interruptor("Modo seguro (evitar bloqueos)", "modoSeguro", guardarPrefsComunes));
     c.appendChild(
-      el(
-        "div",
-        "was-ayuda",
-        "Espacia al azar las busquedas de WhatsApp, similares y la busqueda automatica, " +
-          "como lo haria una persona, y si Facebook o Google piden verificacion hace una " +
-          "pausa de 30 minutos. Desactivado va mas rapido, con mas riesgo de bloqueo."
+      control(
+        "Intervalo de desplazamiento (segundos)",
+        seg,
+        "Cada cuantos segundos baja la pagina para pedir mas anuncios. Menos segundos carga mas rapido; mas segundos es mas suave con el navegador y con Meta."
       )
     );
 
-    c.appendChild(interruptor("Vigilar anunciantes", "vigilarAnunciantes", guardarPrefsComunes));
+    c.appendChild(
+      interruptor(
+        "Carga acelerada",
+        "cargaAcelerada",
+        null,
+        "En cada paso hace un pequeño vaiven (sube y vuelve a bajar) para que la Biblioteca cargue el siguiente lote antes. Mas rapido, pero algo mas pesado."
+      )
+    );
+    c.appendChild(
+      interruptor(
+        "Notificacion",
+        "notificar",
+        null,
+        "Suena un aviso cuando la busqueda automatica termina (por tiempo o por llegar al maximo de anuncios)."
+      )
+    );
+    c.appendChild(
+      interruptor(
+        "Modo seguro (evitar bloqueos)",
+        "modoSeguro",
+        guardarPrefsComunes,
+        "Espacia al azar las busquedas de WhatsApp, similares y la busqueda automatica, como lo haria una persona, y si Facebook o Google piden verificacion hace una pausa de 30 minutos. Desactivado va mas rapido, con mas riesgo de bloqueo."
+      )
+    );
+
+    const filaVig = interruptor(
+      "Vigilar anunciantes",
+      "vigilarAnunciantes",
+      guardarPrefsComunes,
+      'Marca anunciantes con Abrir > "Vigilar este anunciante". Cada 4 horas se revisan y te llega una notificacion si publicaron anuncios nuevos.'
+    );
     const verVig = el("button", "was-mini", "Ver vigilados");
+    verVig.style.marginLeft = "auto";
     verVig.addEventListener("click", verVigilados);
+    filaVig.appendChild(verVig);
+    c.appendChild(filaVig);
+
     c.appendChild(
-      el(
-        "div",
-        "was-ayuda",
-        'Marca anunciantes con Abrir > "Vigilar este anunciante". Cada 4 horas se revisan ' +
-          "y te llega una notificacion si publicaron anuncios nuevos."
+      interruptor(
+        'Mantener siempre "Todos los anuncios"',
+        "forzarTodosAnuncios",
+        null,
+        'Si el desplegable "Tipo de anuncio" cambia a Temas sociales, elecciones o politica (a proposito o sin querer), se vuelve a poner solo en Todos los anuncios.'
       )
     );
-    c.appendChild(verVig);
-
-
-
-    c.appendChild(interruptor('Mantener siempre "Todos los anuncios"', "forzarTodosAnuncios"));
     c.appendChild(
-      el(
-        "div",
-        "was-ayuda",
-        'Si el desplegable "Tipo de anuncio" cambia a Temas sociales, elecciones ' +
-          "o politica (a proposito o sin querer), se vuelve a poner solo en Todos " +
-          "los anuncios."
-      )
-    );
-
-    const porPestana = interruptor("Ajustes propios de esta pestaña", "configPorPestana");
-    c.appendChild(porPestana);
-    c.appendChild(
-      el(
-        "div",
-        "was-ayuda",
-        "Activado, los filtros y ajustes de esta pestaña no afectan a las demas. " +
-          "Desactivado, la configuracion es la misma en todas."
+      interruptor(
+        "Ajustes propios de esta pestaña",
+        "configPorPestana",
+        null,
+        "Activado, los filtros y ajustes de esta pestaña no afectan a las demas (y las pestañas nuevas siguen con la configuracion normal). Desactivado, la configuracion es la misma en todas."
       )
     );
 
