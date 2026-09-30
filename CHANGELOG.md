@@ -8,6 +8,13 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.9.2
+
+- Los enlaces a un anuncio ("Ver anuncio", "URL del anuncio en la
+  Biblioteca", guardados, similares) van siempre con pais "Todos" y cualquier
+  estado: sin pais, Meta ponia el del usuario (p. ej. Colombia) y el
+  anunciante aparecia vacio.
+
 ## 1.9.1
 
 - Guardados: "+ Nueva etiqueta" como primera opcion del selector de

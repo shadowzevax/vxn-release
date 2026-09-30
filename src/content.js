@@ -224,7 +224,10 @@
     return Math.max(0, Math.floor((hasta - a.inicio) / 86400));
   };
 
-  const bibliotecaUrl = (id) => "https://www.facebook.com/ads/library/?id=" + id;
+  // Siempre con pais "Todos" y cualquier estado: sin pais, Meta pone el del
+  // usuario y el anuncio (o el resto del anunciante) puede no aparecer.
+  const bibliotecaUrl = (id) =>
+    "https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=ALL&media_type=all&id=" + id;
 
   /*
    * Igual que bibliotecaUrl, pero forzando el pais a "Todos".
@@ -238,7 +241,7 @@
    * grilla) se deja bibliotecaUrl tal cual: ahi si tiene sentido conservar
    * el pais con el que se esta mirando.
    */
-  const bibliotecaUrlTodos = (id) => bibliotecaUrl(id) + "&country=ALL";
+  const bibliotecaUrlTodos = (id) => bibliotecaUrl(id);
 
   // =========================================================================
   // guardados, vistos y agrupacion por oferta
@@ -476,7 +479,7 @@
     foto: a.paginaFoto || "",
     urlBiblioteca: buscarAnunciante(a.paginaId),
     // El anuncio concreto que coincidio (un anunciante puede vender varias cosas).
-    urlAnuncio: a.id ? "https://www.facebook.com/ads/library/?id=" + a.id : "",
+    urlAnuncio: a.id ? bibliotecaUrl(a.id) : "",
     paises: [...(a.paises || [])],
   });
 

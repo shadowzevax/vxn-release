@@ -1,4 +1,4 @@
 {
-  "version": "1.9.1",
-  "notas": "Crear y eliminar etiquetas desde Guardados."
+  "version": "1.9.2",
+  "notas": "Corregido: los enlaces a anuncios ya no abren filtrados por tu pais."
 }

@@ -698,7 +698,7 @@ async function abrirYRevisar(url, func, args, esperaCargaMs) {
 
 async function verificarSeguido(id, paginaId, perfilUrl) {
   const existe = await abrirYRevisar(
-    "https://www.facebook.com/ads/library/?id=" + id,
+    "https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=ALL&media_type=all&id=" + id,
     anuncioPresente,
     [id, 9000]
   );
