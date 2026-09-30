@@ -1,4 +1,4 @@
 {
-  "version": "1.7.0",
-  "notas": "Nuevo: posiciones y ajustes sincronizados entre pestanas, y paises en anuncios similares."
+  "version": "1.8.0",
+  "notas": "Pegar con comillas, similares por nombre de producto, zoom, diagnostico en consola y menos memoria."
 }

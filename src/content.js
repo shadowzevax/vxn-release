@@ -1135,6 +1135,24 @@
     repintarDistintivosMulti();
   };
 
+  /*
+   * El buscador de la Biblioteca rechaza en silencio lo que se pega si lleva
+   * comillas (probado: pasa igual sin la extension). Se pega sin ellas.
+   */
+  document.addEventListener(
+    "paste",
+    (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLInputElement) || t.type !== "search") return;
+      const texto = e.clipboardData?.getData("text/plain") || "";
+      if (!/["“”«»]/.test(texto)) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      document.execCommand("insertText", false, texto.replace(/["“”«»]/g, "").replace(/\s+/g, " ").trim());
+    },
+    true
+  );
+
   // Escape cancela la seleccion sin tener que ir a buscar el menu de nuevo:
   // es el atajo natural para "salir de este modo" en casi cualquier programa.
   document.addEventListener("keydown", (e) => {
@@ -2343,6 +2361,28 @@
       .split(" ").slice(0, 9).join(" ");
   };
 
+  /*
+   * Nombre del producto: es lo unico que los copiones casi nunca cambian
+   * (el texto lo reescriben entero, pero "Grandes Mentes" sigue ahi). Se
+   * busca entre comillas, en MAYUSCULAS (2+ palabras) o como Nombre Propio
+   * en mitad de una frase.
+   */
+  const nombreProducto = (a) => {
+    const texto = [a.titulo, a.cuerpo].filter(Boolean).join("\n");
+    const genericas = /^(pdf|gratis|oferta|whatsapp|envio|envío|descarga|precio|solo|hoy|ahora|nuevo|nueva)$/i;
+    const valido = (t) => {
+      const w = (t || "").trim().split(/\s+/).filter((x) => x.length > 1);
+      return w.length >= 1 && w.length <= 4 && !w.every((x) => genericas.test(x)) && t.length >= 5;
+    };
+    const citas = [...texto.matchAll(/["“«]([^"”»\n]{4,40})["”»]/g)].map((m) => m[1]).filter(valido);
+    if (citas.length) return citas[0].trim();
+    const mayus = [...texto.matchAll(/(?<![\p{L}])(\p{Lu}{3,}(?:\s+\p{Lu}{2,}){1,3})(?![\p{L}])/gu)].map((m) => m[1]).filter(valido);
+    if (mayus.length) return mayus[0].trim();
+    const propio = [...texto.matchAll(/(?<=[\p{Ll},]\s)(\p{Lu}\p{Ll}{2,}(?:\s+\p{Lu}\p{Ll}{2,}){1,2})(?![\p{L}])/gu)].map((m) => m[1]).filter(valido);
+    return propio.length ? propio[0].trim() : "";
+  };
+  const plano = (t) => (t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+
   // Mismo anunciante: misma pagina, o el mismo nombre (hay anunciantes con
   // varias paginas que se llaman igual).
   /*
@@ -2397,6 +2437,18 @@
     const nombrePropio = normNombre(a.paginaNombre);
     const exactos = new Map();
     const posibles = new Map();
+    const pocos = new Map();
+    const producto = nombreProducto(a);
+    const productoPlano = plano(producto);
+    const palabrasProducto = new Set(productoPlano.split(" "));
+    // Mismo producto: lo nombra y ademas comparte al menos 3 palabras del
+    // tema (asi "grandes mentes" de una cerveza o un gobierno no cuela).
+    const mismoTema = (x) => {
+      if (!(" " + plano((x.titulo || "") + " " + (x.cuerpo || "")) + " ").includes(" " + productoPlano + " ")) return false;
+      let comunes = 0;
+      for (const w of palabrasOferta(x)) if (propias.has(w) && !palabrasProducto.has(plano(w))) comunes++;
+      return comunes >= 3;
+    };
     let revisados = 0;
 
     const clasificar = (lista) => {
@@ -2415,14 +2467,31 @@
           unir(exactos);
           if (antes) exactos.get(x.paginaId).paises = [...new Set([...antes.paises, ...exactos.get(x.paginaId).paises])];
           posibles.delete(x.paginaId);
-        } else if (!exactos.has(x.paginaId) && parecido(propias, palabrasOferta(x)) >= UMBRAL_PARECIDO) {
-          unir(posibles);
+          pocos.delete(x.paginaId);
+        } else if (exactos.has(x.paginaId)) {
+          // ya esta en el bloque mas fuerte
+        } else {
+          const sim = parecido(propias, palabrasOferta(x));
+          if (sim >= UMBRAL_PARECIDO) {
+            unir(posibles);
+            pocos.delete(x.paginaId);
+          } else if (
+            !posibles.has(x.paginaId) &&
+            (sim >= 0.3 || (productoPlano && mismoTema(x)))
+          ) {
+            unir(pocos);
+          }
         }
       }
     };
     const secciones = () => [
       { titulo: "Mismo anuncio exacto", lista: [...exactos.values()], clase: "exacto" },
       { titulo: "Posibles (casi el mismo anuncio)", lista: [...posibles.values()], clase: "posible" },
+      {
+        titulo: producto ? 'Poco probable (mismo producto "' + producto + '")' : "Poco probable (se parece algo)",
+        lista: [...pocos.values()],
+        clase: "poco",
+      },
     ];
 
     const busqueda = "b" + Date.now() + Math.random().toString(36).slice(2);
@@ -2444,7 +2513,7 @@
     });
 
     try {
-      const finales = (await chrome.runtime.sendMessage({ tipo: "buscarSimilares", frase, busqueda })) || [];
+      const finales = (await chrome.runtime.sendMessage({ tipo: "buscarSimilares", frase, producto, busqueda })) || [];
       clasificar(finales);
     } catch {
       aviso("No se pudo completar la busqueda", true);
@@ -2613,6 +2682,40 @@
    * ancha y deja el panel o la bandeja fuera de la vista, sin forma de
    * alcanzarlos para arrastrarlos de vuelta.
    */
+  /*
+   * La posicion se guarda tambien como proporcion de la ventana (centro del
+   * flotante): al hacer zoom o cambiar el tamaño de la ventana, el flotante
+   * vuelve a su sitio relativo en vez de quedar desplazado o fuera.
+   */
+  let ultimoResize = 0;
+  const posDe = (nodo) => {
+    const r = nodo.getBoundingClientRect();
+    return {
+      left: nodo.style.left,
+      top: nodo.style.top,
+      rx: (r.left + r.width / 2) / window.innerWidth,
+      ry: (r.top + r.height / 2) / window.innerHeight,
+    };
+  };
+
+  const colocarGuardado = (nodo, p) => {
+    if (!nodo || !p || !p.left) return;
+    nodo.style.right = "auto";
+    nodo.style.bottom = "auto";
+    if (p.rx == null) {
+      nodo.style.left = p.left;
+      nodo.style.top = p.top;
+    } else {
+      const r = nodo.getBoundingClientRect();
+      nodo.style.left = p.rx * window.innerWidth - r.width / 2 + "px";
+      nodo.style.top = p.ry * window.innerHeight - r.height / 2 + "px";
+    }
+    const r = nodo.getBoundingClientRect();
+    const m = 8;
+    nodo.style.left = Math.max(m, Math.min(window.innerWidth - r.width - m, r.left)) + "px";
+    nodo.style.top = Math.max(m, Math.min(window.innerHeight - r.height - m, r.top)) + "px";
+  };
+
   const mantenerEnPantalla = (nodo, claveGuardado) => {
     if (!nodo || !nodo.style.left) return;
 
@@ -2625,7 +2728,7 @@
     nodo.style.left = x + "px";
     nodo.style.top = y + "px";
     guardarLocal({
-      [claveGuardado]: { left: nodo.style.left, top: nodo.style.top },
+      [claveGuardado]: posDe(nodo),
     });
   };
 
@@ -2670,9 +2773,18 @@
     }
   };
 
+  // Zoom o cambio de ventana: se recoloca desde lo guardado, sin guardar
+  // nada (asi al volver al 100% todo queda como estaba).
+  let tResize = 0;
   window.addEventListener("resize", () => {
-    mantenerEnPantalla(panel, "was-pos-panel");
-    mantenerEnPantalla(bandejaRapida, "was-pos-rapida");
+    ultimoResize = Date.now();
+    clearTimeout(tResize);
+    tResize = setTimeout(() => {
+      chrome.storage.local.get(["was-pos-panel", "was-pos-rapida"], (d) => {
+        colocarGuardado(panel, d["was-pos-panel"]);
+        colocarGuardado(bandejaRapida, d["was-pos-rapida"]);
+      });
+    }, 80);
   });
 
   // Durante un video a pantalla completa no se toca el DOM (ver pintar() y
@@ -3413,7 +3525,7 @@
     const ahora = nodo.getBoundingClientRect();
     nodo.style.left = Math.max(0, antes.right - ahora.width) + "px";
     guardarLocal({
-      [claveGuardado]: { left: nodo.style.left, top: nodo.style.top },
+      [claveGuardado]: posDe(nodo),
     });
   };
 
@@ -5147,15 +5259,7 @@
     chrome.storage.onChanged.addListener((cambios, zona) => {
       const pos = zona === "local" && cambios[claveGuardado]?.newValue;
       if (!pos || pulsado || !soyLaVigente()) return;
-      nodo.style.left = pos.left;
-      nodo.style.top = pos.top;
-      nodo.style.right = "auto";
-      nodo.style.bottom = "auto";
-      requestAnimationFrame(() => {
-        const caja = nodo.getBoundingClientRect();
-        if (caja.right > window.innerWidth) nodo.style.left = Math.max(0, window.innerWidth - caja.width) + "px";
-        if (caja.bottom > window.innerHeight) nodo.style.top = Math.max(0, window.innerHeight - caja.height) + "px";
-      });
+      colocarGuardado(nodo, pos);
     });
 
     document.addEventListener("mouseup", () => {
@@ -5163,7 +5267,7 @@
       pulsado = false;
       if (!movido) return;
       guardarLocal({
-        [claveGuardado]: { left: nodo.style.left, top: nodo.style.top },
+        [claveGuardado]: posDe(nodo),
       });
     });
 
@@ -5194,12 +5298,8 @@
         x >= 0 && y >= 0 &&
         x < window.innerWidth - 60 && y < window.innerHeight - 40;
 
-      if (!cabe) return chrome.storage.local.remove(claveGuardado);
-
-      nodo.style.left = p.left;
-      nodo.style.top = p.top;
-      nodo.style.right = "auto";
-      nodo.style.bottom = "auto";
+      if (!cabe && p.rx == null) return chrome.storage.local.remove(claveGuardado);
+      colocarGuardado(nodo, p);
     });
   };
 
@@ -5586,7 +5686,46 @@
     arrastrable(bandejaRapida, bandejaRapida, "was-pos-rapida");
   };
 
+  /*
+   * Diagnostico en consola (F12): si el contador baja o un flotante se
+   * mueve sin arrastrarlo, se deja constancia con el contexto para poder
+   * copiarlo y arreglarlo.
+   */
+  let totalPrevio = 0;
+  const diagnostico = (que, datos) =>
+    console.warn("[Vyxen v" + VERSION_EXT + "] " + que, {
+      ...datos,
+      anuncios: anuncios.size,
+      total: contadores.total,
+      visibles: contadores.visibles,
+      scrollY: Math.round(window.scrollY),
+      alto: document.documentElement.scrollHeight,
+      buscando: !!auto.timer,
+      instanciaVigente: soyLaVigente(),
+      hora: new Date().toLocaleTimeString(),
+    });
+
+  // Salto grande de scroll sin que el usuario haya tocado nada.
+  let scrollPrevio = window.scrollY;
+  let ultimaEntrada = 0;
+  for (const t of ["wheel", "keydown", "mousedown", "touchstart"]) {
+    window.addEventListener(t, () => (ultimaEntrada = Date.now()), { capture: true, passive: true });
+  }
+  window.addEventListener(
+    "scroll",
+    () => {
+      const d = window.scrollY - scrollPrevio;
+      scrollPrevio = window.scrollY;
+      if (Math.abs(d) > 2500 && !auto.timer && Date.now() - ultimaEntrada > 1500 && soyLaVigente()) {
+        diagnostico("Salto de scroll sin tocar nada", { salto: Math.round(d) });
+      }
+    },
+    { passive: true }
+  );
+
   const actualizarBandejaRapida = () => {
+    if (contadores.total < totalPrevio - 2) diagnostico("El contador bajo", { antes: totalPrevio, ahora: contadores.total });
+    totalPrevio = contadores.total;
     const b = document.getElementById("was-badge");
     if (b) b.textContent = contadores.visibles + "/" + contadores.total;
 
@@ -5945,6 +6084,7 @@
    * que se lo cuenten.
    */
   const reportarError = (error, detalle, donde) => {
+    console.error("[Vyxen v" + VERSION_EXT + "] " + error + ": " + detalle + (donde ? " (" + donde + ")" : ""));
     try {
       chrome.runtime.sendMessage({ tipo: "registrarError", error, detalle: String(detalle || ""), donde: donde || "" }).catch(() => {});
     } catch {}

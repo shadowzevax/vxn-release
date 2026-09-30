@@ -8,6 +8,19 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.8.0
+
+- Pegar en el buscador de la Biblioteca texto con comillas: Meta lo rechazaba
+  en silencio; ahora se pega sin las comillas.
+- "Buscar anuncios similares": tercera pasada por el nombre del producto
+  (entre comillas, en mayusculas o como nombre propio) y nuevo bloque
+  "Poco probable" que no mezcla con los exactos ni los posibles.
+- El circulo, el panel y la bandeja guardan su posicion relativa a la ventana:
+  el zoom ya no los desplaza.
+- Diagnostico en consola (F12) marcado con [Vyxen]: errores, contador que baja
+  y saltos de scroll sin tocar nada.
+- Menos memoria: no se dibujan las tarjetas lejos de la pantalla.
+
 ## 1.7.0
 
 - Sincronizacion entre pestañas: mover el circulo o los paneles, o cambiar

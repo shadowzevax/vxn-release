@@ -1088,7 +1088,7 @@ chrome.runtime.onMessage.addListener((msg, _remitente, responder) => {
     // Los avances van a la pestaña que pregunto, para ir pintandolos en vivo.
     const avisar = (datos) =>
       chrome.tabs.sendMessage(_remitente.tab.id, { tipo: "similaresParcial", busqueda: msg.busqueda, ...datos }).catch(() => {});
-    buscarSimilares(msg.frase, avisar).then(responder).catch(() => responder([]));
+    buscarSimilares(msg.frase, avisar, msg.producto).then(responder).catch(() => responder([]));
     return true;
   }
 
@@ -1201,16 +1201,18 @@ chrome.runtime.onInstalled.addListener(buscarActualizacion);
  * cualquier orden (mas amplia, atrapa copias con retoques). La pestaña se
  * abre con #vyxen-similares: el panel de alli usa ajustes neutros.
  */
-async function buscarSimilares(frase, avisar = () => {}) {
+async function buscarSimilares(frase, avisar = () => {}, producto = "") {
   const juntos = new Map();
   const pasadas = [
-    ["keyword_exact_phrase", "frase exacta"],
-    ["keyword_unordered", "busqueda amplia"],
+    ["keyword_exact_phrase", "frase exacta", frase],
+    ["keyword_unordered", "busqueda amplia", frase],
   ];
+  // Tercera: el nombre del producto, que los copiones casi nunca cambian.
+  if (producto) pasadas.push(["keyword_exact_phrase", "nombre del producto", producto]);
   for (let i = 0; i < pasadas.length; i++) {
-    const [tipo, nombre] = pasadas[i];
+    const [tipo, nombre, texto] = pasadas[i];
     const etiqueta = "Pasada " + (i + 1) + "/" + pasadas.length + " (" + nombre + ")";
-    const lista = await buscarSimilaresPasada(frase, tipo, (d) =>
+    const lista = await buscarSimilaresPasada(texto, tipo, (d) =>
       avisar({ ...d, texto: etiqueta + ": " + d.texto })
     ).catch(() => []);
     for (const x of lista) juntos.set(x.id, x);
@@ -1356,6 +1358,7 @@ chrome.tabs.onUpdated.addListener(async (id, info) => {
 const URL_ERRORES = "";
 
 async function registrarError(tipo, detalle, donde) {
+  console.error("[Vyxen] " + tipo + ": " + detalle + (donde ? " (" + donde + ")" : ""));
   const version = chrome.runtime.getManifest().version;
   const clave = tipo + "|" + String(detalle).slice(0, 200);
   const { errores = {} } = await chrome.storage.local.get("errores");
