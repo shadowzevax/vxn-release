@@ -5436,14 +5436,34 @@
       }
 
       if (habiaOtraInstancia) {
-        document
-          .querySelectorAll(".was-panel-flotante, .was-rapida, .was-barra, .was-panel, .was-aviso-actualizada, .was-suelto-fondo, .was-mural")
-          .forEach((n) => n.remove());
-        document.querySelectorAll("[data-was-id]").forEach((t) => {
-          t.classList.remove("was-tarjeta", "was-escalando", "was-inactivo", "was-resalte", "was-filtrado", "was-oculto");
-          delete t.dataset.wasId;
+        /*
+         * Quitar las barras de la version vieja encoge cada tarjeta ~90px y
+         * toda la lista se desplaza: se veia un salto enorme. Se toma como
+         * ancla la tarjeta que se esta mirando y, mientras la version nueva
+         * vuelve a decorar, se corrige el scroll para dejarla en el mismo
+         * sitio de la pantalla.
+         */
+        const ancla = [...document.querySelectorAll("[data-was-id]")].find((t) => {
+          const r = t.getBoundingClientRect();
+          return r.bottom > 80 && r.top < window.innerHeight;
         });
-        document.querySelectorAll(".was-tarjeta, .was-escalando").forEach((t) => t.classList.remove("was-tarjeta", "was-escalando"));
+        const topAncla = ancla ? ancla.getBoundingClientRect().top : 0;
+        const reanclar = () => {
+          if (!ancla || !ancla.isConnected) return;
+          const d = ancla.getBoundingClientRect().top - topAncla;
+          if (Math.abs(d) > 1) window.scrollBy(0, d);
+        };
+        for (const ms of [0, 60, 250, 700, 1500, 3000]) setTimeout(reanclar, ms);
+        document
+          // Las barras de las tarjetas no: la version nueva las sustituye una
+          // a una al decorar (sin el parpadeo de quitarlas todas antes).
+          .querySelectorAll(".was-panel-flotante, .was-rapida, .was-panel, .was-aviso-actualizada, .was-suelto-fondo, .was-mural")
+          .forEach((n) => n.remove());
+        // Las clases de las tarjetas (y con ellas el hueco de 90px de la
+        // barra) se dejan: si se quitaran, la lista encogeria de golpe y Meta
+        // lo tomaria como que se llego al final y cargaria otro lote. La
+        // version nueva las rehace al decorar cada tarjeta.
+        document.querySelectorAll("[data-was-id]").forEach((t) => delete t.dataset.wasId);
         /*
          * Si la pagina se abrio con una version que no guardaba copia de lo
          * leido, no hay forma de recuperar esos anuncios: se avisa para

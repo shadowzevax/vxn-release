@@ -8,6 +8,11 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.3.2
+- Actualizacion sin refrescar mas suave: la vista se queda anclada en el
+  anuncio que estabas mirando, las tarjetas no encogen (Meta ya no carga un
+  lote de mas) y las barras se sustituyen sin parpadeo.
+
 ## 1.3.1
 - Con "WA solo CTA" desactivado, el boton de WhatsApp aparece en todos los
   anuncios (antes solo en los que llevaban a WhatsApp de alguna forma).
