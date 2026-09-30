@@ -1171,3 +1171,43 @@ chrome.alarms.onAlarm.addListener((a) => {
 });
 chrome.runtime.onStartup.addListener(buscarActualizacion);
 chrome.runtime.onInstalled.addListener(buscarActualizacion);
+
+/*
+ * Tras actualizarse, la extension mete su codigo nuevo en las pestañas de la
+ * Biblioteca que ya estaban abiertas: el panel viejo se aparta solo y el
+ * nuevo recupera los anuncios ya cargados (ver "reenviar" en hook.js), sin
+ * que el usuario tenga que refrescar la pagina.
+ */
+let yaInyectado = false;
+async function inyectarEnPestanasAbiertas() {
+  if (yaInyectado) return;
+  yaInyectado = true;
+  const pestanas = await chrome.tabs.query({ url: "*://*.facebook.com/ads/library/*" });
+  for (const t of pestanas) {
+    try {
+      await chrome.scripting.insertCSS({ target: { tabId: t.id }, files: ["libs/notyf.min.css", "src/content.css"] });
+      await chrome.scripting.executeScript({
+        target: { tabId: t.id },
+        files: ["libs/popper.min.js", "libs/notyf.min.js", "libs/jszip.min.js", "src/content.js"],
+      });
+    } catch {}
+  }
+}
+
+// Dos disparadores, por si uno falla: el aviso de Chrome al instalarse o
+// actualizarse, y al arrancar el service worker con una version distinta de
+// la ultima anotada. La marca "versionInyectada" evita hacerlo dos veces.
+chrome.runtime.onInstalled.addListener(async ({ reason }) => {
+  if (reason !== "update") return;
+  const actual = chrome.runtime.getManifest().version;
+  await chrome.storage.local.set({ versionInyectada: actual });
+  inyectarEnPestanasAbiertas();
+});
+
+(async () => {
+  const actual = chrome.runtime.getManifest().version;
+  const { versionInyectada } = await chrome.storage.local.get("versionInyectada");
+  if (versionInyectada === actual) return;
+  await chrome.storage.local.set({ versionInyectada: actual });
+  if (versionInyectada) inyectarEnPestanasAbiertas();
+})();

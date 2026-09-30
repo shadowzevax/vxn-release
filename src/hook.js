@@ -13,10 +13,28 @@
 (() => {
   const CANAL = "WA_ADS_SPY";
 
+  /*
+   * Copia de todo lo leido. Este script vive en la propia pagina, asi que
+   * sobrevive a que la extension se actualice; la version nueva del panel
+   * la pide al arrancar ("reenviar") y recupera los anuncios ya cargados sin
+   * tener que refrescar la pagina.
+   */
+  const leidos = new Map();
+
   const emitir = (anuncios) => {
     if (!anuncios.length) return;
+    for (const a of anuncios) leidos.set(a.id, a);
     window.postMessage({ canal: CANAL, tipo: "anuncios", anuncios }, "*");
   };
+
+  window.addEventListener("message", (e) => {
+    if (e.source !== window || !e.data || e.data.canal !== CANAL || e.data.tipo !== "reenviar") return;
+    const todos = [...leidos.values()];
+    for (let i = 0; i < todos.length; i += 200) {
+      window.postMessage({ canal: CANAL, tipo: "anuncios", anuncios: todos.slice(i, i + 200) }, "*");
+    }
+    window.postMessage({ canal: CANAL, tipo: "reenviado", total: todos.length }, "*");
+  });
 
   /*
    * Se probo a bloquear la peticion que pide el siguiente lote

@@ -13,6 +13,16 @@
  */
 (() => {
   const CANAL = "WA_ADS_SPY";
+
+  /*
+   * Si la extension se actualizo con la pagina abierta, en este documento
+   * queda el panel de la version anterior. La nueva se anota como la unica
+   * valida; la vieja lo ve y se apaga (deja de decorar y de escuchar).
+   */
+  const MI_INSTANCIA = String(Date.now()) + Math.random().toString(36).slice(2);
+  const soyLaVigente = () => document.documentElement.dataset.wasInstancia === MI_INSTANCIA;
+  const habiaOtraInstancia = !!document.documentElement.dataset.wasInstancia;
+  document.documentElement.dataset.wasInstancia = MI_INSTANCIA;
   // eslint-disable-next-line no-unused-vars
   const SEMILLA_UI = "Vnl4ZW4gKGMpIDIwMjYgUml4aXVzLiBUb2RvcyBsb3MgZGVyZWNob3MgcmVzZXJ2YWRvcy4gUHJvaGliaWRhIGxhIG1vZGlmaWNhY2lvbiwgY29waWEgbyByZWRpc3RyaWJ1Y2lvbiBzaW4gYXV0b3JpemFjaW9uIGVzY3JpdGEgZGUgUml4aXVzLg==";
   const anuncios = new Map(); // ad_archive_id -> datos
@@ -94,6 +104,7 @@
    * de sitio. Con la direccion ya guardada, sigue dibujandose igual.
    */
   const URL_EXT = chrome.runtime.getURL("");
+  const VERSION_EXT = chrome.runtime.getManifest().version;
   const urlExt = (ruta) => URL_EXT + ruta;
 
   // ¿Sigue conectada esta copia del script con la extension?
@@ -2905,7 +2916,7 @@
   // busqueda automatica
   // =========================================================================
 
-  let auto = { timer: null, fin: 0, altura: 0, quieto: 0 };
+  let auto = { timer: null, fin: 0, altura: 0, quieto: 0, esperandoDesde: 0, pedidoCon: 0 };
 
   const alturaPagina = () =>
     Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
@@ -2956,6 +2967,23 @@
      * ultimo recurso el boton "Ver mas" del final de la lista (nunca uno
      * de las tarjetas).
      */
+    /*
+     * No se pide otro lote hasta que llegue el anterior (o pasen 6 s): antes
+     * se bajaba cada segundo aunque la Biblioteca aun no hubiera respondido,
+     * y se juntaban dos o tres lotes de ~30 anuncios de golpe, pasandose de
+     * largo del tope.
+     */
+    if (anuncios.size >= prefs.maxAnuncios) {
+      avisadoTope = true;
+      detenerBusqueda();
+      actualizarBandejaRapida();
+      aviso("Tope de " + prefs.maxAnuncios + " anuncios alcanzado", true);
+      return;
+    }
+    if (auto.esperandoDesde && Date.now() - auto.esperandoDesde < 6000 && anuncios.size === auto.pedidoCon) return;
+    auto.esperandoDesde = Date.now();
+    auto.pedidoCon = anuncios.size;
+
     const antes = alturaPagina();
     auto.quieto = antes <= auto.altura ? auto.quieto + 1 : 0;
     auto.altura = antes;
@@ -2983,6 +3011,7 @@
     auto.fin = Date.now() + prefs.detenerMin * 60000;
     auto.altura = 0;
     auto.quieto = 0;
+    auto.esperandoDesde = 0;
     auto.timer = setInterval(pasoScroll, Math.max(1, prefs.intervaloSeg) * 1000);
     pasoScroll();
     actualizarPanel();
@@ -3136,6 +3165,42 @@
     });
     return s;
   };
+
+  /*
+   * Ayuda de los "?": una capa fija colgada de <body>, colocada junto al
+   * icono y dentro de la pantalla. Como pseudo-elemento se cortaba dentro
+   * del panel (que recorta lo que sobresale).
+   */
+  let ayudaFlotante = null;
+  const mostrarAyuda = (pista) => {
+    ocultarAyuda();
+    ayudaFlotante = el("div", "was-ayuda-flotante");
+    ayudaFlotante.textContent = pista.getAttribute("data-ayuda");
+    document.body.appendChild(ayudaFlotante);
+    const r = pista.getBoundingClientRect();
+    const a = ayudaFlotante.getBoundingClientRect();
+    let x = r.left + r.width / 2 - a.width / 2;
+    x = Math.max(8, Math.min(window.innerWidth - a.width - 8, x));
+    let y = r.top - a.height - 8;
+    if (y < 8) y = r.bottom + 8;
+    ayudaFlotante.style.left = x + "px";
+    ayudaFlotante.style.top = y + "px";
+  };
+  const ocultarAyuda = () => {
+    ayudaFlotante?.remove();
+    ayudaFlotante = null;
+  };
+  document.addEventListener("mouseover", (e) => {
+    const pista = e.target.closest?.(".was-pista[data-ayuda]");
+    if (pista) mostrarAyuda(pista);
+  });
+  document.addEventListener("mouseout", (e) => {
+    if (e.target.closest?.(".was-pista[data-ayuda]")) ocultarAyuda();
+  });
+  document.addEventListener("focusin", (e) => {
+    if (e.target.matches?.(".was-pista[data-ayuda]")) mostrarAyuda(e.target);
+  });
+  document.addEventListener("focusout", ocultarAyuda);
 
   const interruptor = (etiqueta, clave, alCambiar, ayuda) => {
     const fila = el("div", "was-switch-fila");
@@ -4500,7 +4565,8 @@
       '<span class="was-marca"><img class="was-marca-logo" alt="" draggable="false" src="' +
       urlExt("icons/vyxen-128.png") +
       '"><span class="was-marca-texto"><b>VYXEN</b>' +
-      '<i><s></s>&#10022; V Y X E N &#10022;<s></s></i></span></span>';
+      '<i><s></s>&#10022; V Y X E N &#10022;<s></s></i></span>' +
+      '<small class="was-version">v' + VERSION_EXT + "</small></span>";
 
     // Recogido es un circulo con la lupa; desplegado, la cabecera del panel.
     const plegar = el("button", "was-plegar");
@@ -4951,8 +5017,26 @@
    * WhatsApp, guardar anuncios...) vuelve a funcionar al refrescar.
    */
   let avisoActualizacionPuesto = false;
+  let instanciaApagada = false;
+  let recibidoReenvio = false;
+
+  // Una version vieja que ve que ya hay otra: deja de trabajar en silencio.
+  const apagarInstancia = () => {
+    if (instanciaApagada) return;
+    instanciaApagada = true;
+    try {
+      observador.disconnect();
+      observadorTamano.disconnect();
+      detenerBusqueda();
+    } catch {}
+  };
+
   const vigilarActualizacion = () => {
     const reloj = setInterval(() => {
+      if (!soyLaVigente()) {
+        clearInterval(reloj);
+        return apagarInstancia();
+      }
       if (extensionViva() || avisoActualizacionPuesto) return;
       avisoActualizacionPuesto = true;
       clearInterval(reloj);
@@ -5121,6 +5205,11 @@
 
   window.addEventListener("message", (e) => {
     if (e.source !== window || !e.data || e.data.canal !== CANAL) return;
+    if (!soyLaVigente()) return;
+    if (e.data.tipo === "reenviado") {
+      recibidoReenvio = true;
+      return;
+    }
     if (e.data.tipo !== "anuncios") return;
 
     for (const a of e.data.anuncios) {
@@ -5134,14 +5223,6 @@
        * nuevos y paramos la busqueda automatica; los ya cargados se pueden
        * seguir usando con normalidad.
        */
-      if (!anuncios.has(a.id) && anuncios.size >= prefs.maxAnuncios + 200) {
-        if (!avisadoTope) {
-          avisadoTope = true;
-          detenerBusqueda();
-          aviso("Tope de " + prefs.maxAnuncios + " anuncios: filtra o recarga la pagina", true);
-        }
-        continue;
-      }
 
       if (guardados[a.id]) anotarMedida(a);
       const previo = anuncios.get(a.id);
@@ -5159,6 +5240,19 @@
     }
     recalcularCopiones();
     pintarCompletoPronto();
+
+    /*
+     * El tope se mira en cuanto llegan los datos, no al terminar de pintar
+     * las tarjetas: asi la busqueda para casi en el acto (con un tope de 40
+     * seguia hasta ~80 mientras se pintaba el lote). Solo detiene la
+     * busqueda automatica: lo que se cargue a mano se sigue decorando.
+     */
+    if (auto.timer && anuncios.size >= prefs.maxAnuncios) {
+      avisadoTope = true;
+      detenerBusqueda();
+      actualizarBandejaRapida();
+      aviso("Tope de " + prefs.maxAnuncios + " anuncios alcanzado", true);
+    }
   });
 
   /**
@@ -5297,6 +5391,7 @@
     }
 
     clearTimeout(observador._t);
+    if (!soyLaVigente()) return apagarInstancia();
     observador._t = setTimeout(() => {
       // Al cerrar el cuadro de detalle rehacemos la grilla entera: Meta deja
       // sus nodos en el documento y conviene reemparejar sin arrastrar restos.
@@ -5310,7 +5405,7 @@
       if (seCerro) refrescarTodo();
       else if (trozos.length) pintar(trozos);
       else colocarBarras(); // nada nuevo que decorar: basta recolocar
-    }, 350);
+    }, 150);
   });
 
   const arrancar = async () => {
@@ -5339,6 +5434,25 @@
         guardarPrefs();
       }
 
+      if (habiaOtraInstancia) {
+        document
+          .querySelectorAll(".was-panel-flotante, .was-rapida, .was-barra, .was-panel, .was-aviso-actualizada, .was-suelto-fondo, .was-mural")
+          .forEach((n) => n.remove());
+        document.querySelectorAll("[data-was-id]").forEach((t) => {
+          t.classList.remove("was-tarjeta", "was-escalando", "was-inactivo", "was-resalte", "was-filtrado", "was-oculto");
+          delete t.dataset.wasId;
+        });
+        document.querySelectorAll(".was-tarjeta, .was-escalando").forEach((t) => t.classList.remove("was-tarjeta", "was-escalando"));
+        /*
+         * Si la pagina se abrio con una version que no guardaba copia de lo
+         * leido, no hay forma de recuperar esos anuncios: se avisa para
+         * refrescar cuando convenga.
+         */
+        setTimeout(() => {
+          if (!recibidoReenvio) aviso("Vyxen se actualizo: refresca la pagina para usarlo en los anuncios ya cargados", true);
+          else aviso("Vyxen se actualizo a la v" + VERSION_EXT + " sin perder lo cargado");
+        }, 2500);
+      }
       aplicarApariencia();
       crearPanel();
       crearBandejaRapida();
@@ -5348,6 +5462,10 @@
       configurarBuscadorInicial().finally(vigilarCategoriaSinElegir);
       pintar();
       vigilarActualizacion();
+
+      // Recupera lo que la pagina ya habia leido (tras una actualizacion o
+      // si este script llego tarde); hook.js lo reenvia.
+      window.postMessage({ canal: CANAL, tipo: "reenviar" }, "*");
 
       /*
        * "Busqueda automatica": al cargar (o recargar) una

@@ -1326,29 +1326,28 @@
   cursor: help;
 }
 
-.was-pista::after {
-  content: attr(data-ayuda);
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  z-index: 80;
-  width: 210px;
-  padding: 8px 10px;
-  font-size: 11.5px;
-  font-weight: 500;
-  line-height: 1.35;
+/* La ayuda del "?" la pinta content.js en una capa aparte (.was-ayuda-flotante):
+   dentro del panel se cortaba, porque el panel recorta lo que sobresale. */
+.was-ayuda-flotante {
+  position: fixed;
+  z-index: 2147483647;
+  max-width: 260px;
+  padding: 9px 12px;
+  font: 500 12px/1.4 var(--was-ui);
   color: #fff;
-  background: #1c2734;
-  border-radius: 7px;
-  transform: translateX(-50%);
-  opacity: 0;
+  background: var(--was-tinta);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.3);
   pointer-events: none;
-  transition: opacity 0.14s;
 }
 
-.was-pista:hover::after,
-.was-pista:focus::after {
-  opacity: 1;
+.was-version {
+  align-self: flex-start;
+  margin-left: 2px;
+  font: 700 9px/1 var(--was-ui);
+  letter-spacing: 0.04em;
+  color: #8b909a;
 }
 
 /* ===================== vista de guardados ===================== */
