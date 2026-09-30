@@ -1805,9 +1805,10 @@
     // busqueda filtrada por la propia Biblioteca a plataforma WhatsApp, uno
     // de estos pasaba desapercibido. No es una certeza como el resto, asi
     // que solo cuenta cuando el filtro no pide exclusivamente el CTA exacto.
-    const mostrarWa = prefs.waSoloCta
-      ? a.ctaEsWhatsapp
-      : a.destinoWhatsapp || a.ctaEsWhatsapp || a.mensajeriaAWhatsapp;
+    // Desactivado "WA solo CTA": el boton sale en TODOS los anuncios, lleven
+    // o no a WhatsApp, para intentar sacar el numero de cualquier anunciante
+    // (el boton tambien lo busca en su pagina de Facebook).
+    const mostrarWa = prefs.waSoloCta ? a.ctaEsWhatsapp : true;
     if (mostrarWa) {
       const accionWa = accion("WhatsApp", ICONOS.wa, (btn) => clicWhatsapp(a, btn, false), "was-accion-wa");
       conectarBotonWa(a, accionWa.querySelector(".was-accion-btn"));
@@ -4801,7 +4802,7 @@
    */
   const ACCESOS = {
     waSoloCta: {
-      tipo: "si/no", texto: "WhatsApp solo si el CTA lo dice", corto: "WA solo CTA",
+      tipo: "si/no", texto: "Boton de WhatsApp solo si el anuncio dice WhatsApp (desactivado: en todos)", corto: "WA solo CTA",
       alCambiar: () => {
         document.querySelectorAll("[data-was-id]").forEach((t) => delete t.dataset.wasId);
         pintar();

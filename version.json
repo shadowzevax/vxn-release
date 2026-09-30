@@ -1,4 +1,4 @@
 {
-  "version": "1.3.0",
-  "notas": "Las proximas actualizaciones se aplican sin refrescar la pagina (conservando lo cargado). Version visible en el panel, ayuda (?) corregida, tope mas preciso y la extension funciona en todo lo cargado a mano."
+  "version": "1.3.1",
+  "notas": "Con \"WA solo CTA\" desactivado, el boton de WhatsApp aparece en todos los anuncios."
 }

@@ -8,6 +8,10 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.3.1
+- Con "WA solo CTA" desactivado, el boton de WhatsApp aparece en todos los
+  anuncios (antes solo en los que llevaban a WhatsApp de alguna forma).
+
 ## 1.3.0
 - Actualizar sin refrescar: la version nueva se mete en las pestañas abiertas,
   recupera los anuncios ya cargados (hook.js guarda una copia) y la vieja se
