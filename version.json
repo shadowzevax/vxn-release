@@ -1,4 +1,4 @@
 {
-  "version": "1.6.0",
-  "notas": "Nuevo: modo seguro contra bloqueos, vigilar anunciantes y deteccion de fallos."
+  "version": "1.6.1",
+  "notas": "Ajuste: se quita el envio de informes de errores."
 }

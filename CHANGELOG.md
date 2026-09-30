@@ -8,6 +8,11 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.6.1
+
+- Se quita el interruptor "Enviar informes de errores": por ahora no se envia
+  nada al autor. El aviso de fallo de lectura pide refrescar o avisar a Rixius.
+
 ## 1.6.0
 
 - Modo seguro (activado por defecto): pausas al azar entre acciones en

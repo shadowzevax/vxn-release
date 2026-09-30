@@ -4902,15 +4902,7 @@
     );
     c.appendChild(verVig);
 
-    c.appendChild(interruptor("Enviar informes de errores", "enviarErrores", guardarPrefsComunes));
-    c.appendChild(
-      el(
-        "div",
-        "was-ayuda",
-        "Si algo falla (por ejemplo, Meta cambia la Biblioteca), se avisa al autor para " +
-          "arreglarlo cuanto antes. Solo se envia el tipo de fallo y la version, nada de tus busquedas."
-      )
-    );
+
 
     c.appendChild(interruptor('Mantener siempre "Todos los anuncios"', "forzarTodosAnuncios"));
     c.appendChild(
@@ -5917,7 +5909,7 @@
     const tarjetas = [...document.querySelectorAll("div")].filter((d) => d.childElementCount < 40 && RE_ID.test(d.innerText || "")).length;
     if (tarjetas >= 3 && anuncios.size === 0) {
       reportarError("sin-lectura", "Hay tarjetas pero no se leyo ningun anuncio", location.pathname);
-      aviso("Vyxen no pudo leer los anuncios de esta pagina. Se aviso a Rixius.", true);
+      aviso("Vyxen no pudo leer los anuncios de esta pagina. Prueba a refrescarla; si sigue, avisa a Rixius.", true);
     }
   }, 30000);
 
