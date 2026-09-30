@@ -1,4 +1,4 @@
 {
-  "version": "1.5.1",
-  "notas": "Buscar anuncios similares ahora muestra resultados en vivo y ya no incluye al anunciante de origen."
+  "version": "1.5.2",
+  "notas": "Buscar anuncios similares ya no se ve afectado por tus filtros y hace una segunda pasada mas amplia."
 }

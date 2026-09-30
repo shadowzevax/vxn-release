@@ -8,6 +8,13 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.5.2
+
+- "Buscar anuncios similares" busca en una pestaña con ajustes neutros propios:
+  sin filtros, sin WhatsApp solo CTA, sin tope y sin tocar tus ajustes.
+- Dos pasadas: frase exacta y luego las mismas palabras en cualquier orden
+  (atrapa copias con pequeños cambios).
+
 ## 1.5.1
 
 - "Buscar anuncios similares": la ventana se abre al instante con barra de carga

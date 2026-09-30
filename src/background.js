@@ -1191,10 +1191,32 @@ chrome.runtime.onInstalled.addListener(buscarActualizacion);
  * buscando la frase exacta, baja unas cuantas veces para cargar mas, pide al
  * panel de esa pestaña lo que leyo y la cierra.
  */
+/*
+ * Dos pasadas: la frase exacta (precisa) y luego las mismas palabras en
+ * cualquier orden (mas amplia, atrapa copias con retoques). La pestaña se
+ * abre con #vyxen-similares: el panel de alli usa ajustes neutros.
+ */
 async function buscarSimilares(frase, avisar = () => {}) {
+  const juntos = new Map();
+  const pasadas = [
+    ["keyword_exact_phrase", "frase exacta"],
+    ["keyword_unordered", "busqueda amplia"],
+  ];
+  for (let i = 0; i < pasadas.length; i++) {
+    const [tipo, nombre] = pasadas[i];
+    const etiqueta = "Pasada " + (i + 1) + "/" + pasadas.length + " (" + nombre + ")";
+    const lista = await buscarSimilaresPasada(frase, tipo, (d) =>
+      avisar({ ...d, texto: etiqueta + ": " + d.texto })
+    ).catch(() => []);
+    for (const x of lista) juntos.set(x.id, x);
+  }
+  return [...juntos.values()];
+}
+
+async function buscarSimilaresPasada(frase, tipo, avisar) {
   const url =
     "https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=ALL&media_type=all" +
-    "&q=" + encodeURIComponent(frase) + "&search_type=keyword_exact_phrase";
+    "&q=" + encodeURIComponent(frase) + "&search_type=" + tipo + "#vyxen-similares";
   let pestana;
   const volcar = () => chrome.tabs.sendMessage(pestana.id, { tipo: "volcarAnuncios" }).catch(() => null);
   try {

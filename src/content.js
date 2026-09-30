@@ -15,6 +15,13 @@
   const CANAL = "WA_ADS_SPY";
 
   /*
+   * Pestaña de fondo de "Buscar anuncios similares": trabaja con ajustes
+   * neutros propios (sin filtros, sin tope, sin tocar el buscador) y no guarda
+   * nada, para que tus ajustes no alteren la busqueda ni al reves.
+   */
+  const MODO_SIMILARES = location.hash === "#vyxen-similares";
+
+  /*
    * Si la extension se actualizo con la pagina abierta, en este documento
    * queda el panel de la version anterior. La nueva se anota como la unica
    * valida; la vieja lo ve y se apaga (deja de decorar y de escuchar).
@@ -3272,6 +3279,7 @@
    * que se recuerde entre sesiones.
    */
   const guardarPrefs = () => {
+    if (MODO_SIMILARES) return;
     aplicarTonoPestana();
     pintarAccesos();
     if (prefs.configPorPestana) {
@@ -5694,6 +5702,13 @@
 
       prefs = { ...PREFS_DEF, ...guardadas };
       prefs.configPorPestana = !!d.configPorPestana;
+      if (MODO_SIMILARES) {
+        prefs = {
+          ...PREFS_DEF, configPorPestana: true, waSoloCta: false, ocultarFiltrados: false,
+          autoBusqueda: false, forzarTodosAnuncios: false, maxAnuncios: 100000,
+        };
+        guardadas = { version: VERSION_PREFS };
+      }
 
       // La version hay que mirarla en lo guardado, no en el objeto ya
       // fusionado: ahi PREFS_DEF habria puesto la version nueva y la
@@ -5749,7 +5764,7 @@
       if (enModoMural()) setTimeout(abrirMural, 800);
       observador.observe(document.body, { childList: true, subtree: true });
       vigilarCambioDeBusqueda();
-      configurarBuscadorInicial().finally(vigilarCategoriaSinElegir);
+      if (!MODO_SIMILARES) configurarBuscadorInicial().finally(vigilarCategoriaSinElegir);
       pintar();
       vigilarActualizacion();
 
