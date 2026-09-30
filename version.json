@@ -1,4 +1,4 @@
 {
-  "version": "1.6.1",
-  "notas": "Ajuste: se quita el envio de informes de errores."
+  "version": "1.6.2",
+  "notas": "Corregido: Solo esta pestana ya no se activa en las pestanas nuevas."
 }

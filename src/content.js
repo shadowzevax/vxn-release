@@ -3352,15 +3352,32 @@
     aplicarTonoPestana();
     pintarAccesos();
     if (prefs.configPorPestana) {
+      // Solo en esta pestaña: el almacen comun ni se toca, asi una pestaña
+      // nueva arranca con la configuracion normal.
       try {
         sessionStorage.setItem("was-prefs", JSON.stringify(prefs));
       } catch (e) {}
-      guardarLocal({ configPorPestana: true });
       return;
     }
+    let veniaDePropios = false;
     try {
+      veniaDePropios = !!sessionStorage.getItem("was-prefs");
       sessionStorage.removeItem("was-prefs");
     } catch (e) {}
+    if (veniaDePropios) {
+      // Al apagar "Solo esta pestaña" se vuelve a la configuracion normal,
+      // sin pisarla con los filtros que tenia esta pestaña.
+      chrome.storage.local.get("prefs", (d) => {
+        prefs = { ...PREFS_DEF, ...(d.prefs || {}), configPorPestana: false };
+        aplicarApariencia();
+        aplicarTonoPestana();
+        pintarAccesos();
+        actualizarBandejaRapida();
+        pintar();
+        aviso("Vuelves a la configuracion normal");
+      });
+      return;
+    }
     guardarLocal({ prefs, configPorPestana: false });
   };
 
@@ -5788,15 +5805,18 @@
 
       // Si esta pestaña lleva ajustes propios, mandan los suyos sobre los
       // comunes. Se guardan en sessionStorage, que muere con la pestaña.
-      if (d.configPorPestana) {
-        try {
-          const propias = JSON.parse(sessionStorage.getItem("was-prefs") || "null");
-          if (propias) guardadas = propias;
-        } catch (e) {}
-      }
+      // (La marca vive en la propia pestaña, no en el almacen comun.)
+      let propiasDeEstaPestana = false;
+      try {
+        const propias = JSON.parse(sessionStorage.getItem("was-prefs") || "null");
+        if (propias && propias.configPorPestana) {
+          guardadas = propias;
+          propiasDeEstaPestana = true;
+        }
+      } catch (e) {}
 
       prefs = { ...PREFS_DEF, ...guardadas };
-      prefs.configPorPestana = !!d.configPorPestana;
+      prefs.configPorPestana = propiasDeEstaPestana;
       if (MODO_SIMILARES) {
         prefs = {
           ...PREFS_DEF, configPorPestana: true, waSoloCta: false, ocultarFiltrados: false,

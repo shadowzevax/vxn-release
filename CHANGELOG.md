@@ -8,6 +8,12 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.6.2
+
+- "Solo esta pestaña" ahora es de verdad solo de esa pestaña: las pestañas
+  nuevas arrancan con la configuracion normal. Al apagarlo se vuelve a la
+  configuracion normal sin pisarla con los filtros de esa pestaña.
+
 ## 1.6.1
 
 - Se quita el interruptor "Enviar informes de errores": por ahora no se envia
