@@ -1079,6 +1079,11 @@ chrome.runtime.onMessage.addListener((msg, _remitente, responder) => {
     return true;
   }
 
+  if (msg.tipo === "buscarSimilares") {
+    buscarSimilares(msg.frase).then(responder).catch(() => responder([]));
+    return true;
+  }
+
   if (msg.tipo === "cancelarWhatsapp") {
     cancelarSolicitud(msg.solicitud);
     responder({ ok: true });
@@ -1178,6 +1183,35 @@ chrome.runtime.onInstalled.addListener(buscarActualizacion);
  * nuevo recupera los anuncios ya cargados (ver "reenviar" en hook.js), sin
  * que el usuario tenga que refrescar la pagina.
  */
+/*
+ * "Buscar anuncios similares": abre la Biblioteca en una pestaña de fondo
+ * buscando la frase exacta, baja unas cuantas veces para cargar mas, pide al
+ * panel de esa pestaña lo que leyo y la cierra.
+ */
+async function buscarSimilares(frase) {
+  const url =
+    "https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=ALL&media_type=all" +
+    "&q=" + encodeURIComponent(frase) + "&search_type=keyword_exact_phrase";
+  let pestana;
+  const volcar = () => chrome.tabs.sendMessage(pestana.id, { tipo: "volcarAnuncios" }).catch(() => null);
+  try {
+    pestana = await chrome.tabs.create({ url, active: false });
+    await esperarCarga(pestana.id);
+    let lista = null;
+    for (let i = 0; i < 20 && !(lista && lista.length); i++) {
+      await new Promise((r) => setTimeout(r, 700));
+      lista = await volcar();
+    }
+    for (let i = 0; i < 4; i++) {
+      await chrome.scripting.executeScript({ target: { tabId: pestana.id }, func: () => window.scrollTo(0, document.body.scrollHeight) }).catch(() => {});
+      await new Promise((r) => setTimeout(r, 1800));
+    }
+    return (await volcar()) || lista || [];
+  } finally {
+    if (pestana) chrome.tabs.remove(pestana.id).catch(() => {});
+  }
+}
+
 let yaInyectado = false;
 async function inyectarEnPestanasAbiertas() {
   if (yaInyectado) return;

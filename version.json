@@ -1,4 +1,4 @@
 {
-  "version": "1.4.0",
-  "notas": "Configuracion de busqueda: elige si se detiene por cantidad de anuncios o por tiempo (la otra queda en gris)."
+  "version": "1.5.0",
+  "notas": "Nuevo: \"posibles\" (violeta) detecta anunciantes con un anuncio casi igual, y en Abrir > \"Buscar anuncios similares\" busca en la Biblioteca quien mas anuncia lo mismo."
 }

@@ -2492,3 +2492,39 @@ html.was-tema-pestana .was-rapida {
   background: #f0f2f5;
   cursor: not-allowed;
 }
+
+/* ===================== posibles anunciantes (anuncio casi igual) ===================== */
+
+.was-posibles {
+  color: #fff;
+  background: #8b5cf6;
+  cursor: pointer;
+  border: 0;
+  transition: filter 0.12s;
+}
+
+.was-posibles:hover {
+  filter: brightness(1.12);
+}
+
+.was-suelto-anunciantes {
+  width: min(380px, calc(100vw - 40px));
+}
+
+.was-anunciantes-seccion {
+  margin-top: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  border-radius: 8px;
+}
+
+.was-sec-exacto {
+  color: #2b1a00;
+  background: #ffe0b8;
+}
+
+.was-sec-posible {
+  color: #fff;
+  background: #8b5cf6;
+}
