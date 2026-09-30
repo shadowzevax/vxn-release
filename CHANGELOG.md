@@ -8,6 +8,11 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.5.3
+
+- En las ventanas de anunciantes (similares, posibles, mismo anuncio), boton
+  "Ver anuncio" que abre el anuncio concreto que coincidio.
+
 ## 1.5.2
 
 - "Buscar anuncios similares" busca en una pestaña con ajustes neutros propios:

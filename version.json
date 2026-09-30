@@ -1,4 +1,4 @@
 {
-  "version": "1.5.2",
-  "notas": "Buscar anuncios similares ya no se ve afectado por tus filtros y hace una segunda pasada mas amplia."
+  "version": "1.5.3",
+  "notas": "Nuevo boton Ver anuncio para abrir el anuncio exacto que coincidio."
 }

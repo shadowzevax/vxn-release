@@ -2508,7 +2508,7 @@ html.was-tema-pestana .was-rapida {
 }
 
 .was-suelto-anunciantes {
-  width: min(380px, calc(100vw - 40px));
+  width: min(460px, calc(100vw - 40px));
 }
 
 .was-anunciantes-seccion {
@@ -2584,4 +2584,10 @@ html.was-tema-pestana .was-rapida {
   to {
     left: 100%;
   }
+}
+
+.was-mini.was-mini-anuncio {
+  color: var(--was-tinta);
+  background: #fff;
+  border: 1px solid #d0d5dd;
 }

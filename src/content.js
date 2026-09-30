@@ -441,6 +441,8 @@
     nombre: a.paginaNombre || "Anunciante",
     foto: a.paginaFoto || "",
     urlBiblioteca: buscarAnunciante(a.paginaId),
+    // El anuncio concreto que coincidio (un anunciante puede vender varias cosas).
+    urlAnuncio: a.id ? "https://www.facebook.com/ads/library/?id=" + a.id : "",
   });
 
   const recalcularPosibles = () => {
@@ -2269,6 +2271,11 @@
           foto.addEventListener("error", () => foto.remove(), { once: true });
           fila.appendChild(foto);
           fila.appendChild(el("span", "was-fila-anunciante-nombre", anun.nombre));
+          if (anun.urlAnuncio) {
+            const verAnuncio = el("button", "was-mini was-mini-anuncio", "Ver anuncio");
+            verAnuncio.addEventListener("click", () => abrir(anun.urlAnuncio));
+            fila.appendChild(verAnuncio);
+          }
           const ver = el("button", "was-mini", "Ver anunciante");
           ver.addEventListener("click", () => abrir(anun.urlBiblioteca));
           fila.appendChild(ver);
