@@ -1,4 +1,4 @@
 {
-  "version": "1.5.0",
-  "notas": "Nuevo: \"posibles\" (violeta) detecta anunciantes con un anuncio casi igual, y en Abrir > \"Buscar anuncios similares\" busca en la Biblioteca quien mas anuncia lo mismo."
+  "version": "1.5.1",
+  "notas": "Buscar anuncios similares ahora muestra resultados en vivo y ya no incluye al anunciante de origen."
 }

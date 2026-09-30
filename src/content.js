@@ -2215,10 +2215,13 @@
    * Ventana con listas de anunciantes (foto, nombre y "Ver anunciante"),
    * en una o varias secciones.
    */
-  const mostrarAnunciantes = (titulo, secciones) => {
+  const mostrarAnunciantes = (titulo, secciones, opciones = {}) => {
     const fondo = el("div", "was-suelto-fondo");
     const caja = el("div", "was-suelto was-suelto-ficha was-suelto-anunciantes");
-    const cerrar = () => fondo.remove();
+    const cerrar = () => {
+      fondo.remove();
+      opciones.alCerrar?.();
+    };
 
     const cab = el("div", "was-modal-cab");
     cab.appendChild(el("h3", null, titulo));
@@ -2227,33 +2230,63 @@
     cab.appendChild(x);
     caja.appendChild(cab);
 
-    const hay = secciones.some((sec) => sec.lista.length);
-    if (!hay) caja.appendChild(el("p", "was-etiquetas-vacio", "No se encontraron otros anunciantes con este anuncio."));
-
-    for (const sec of secciones) {
-      if (!sec.lista.length) continue;
-      caja.appendChild(el("div", "was-anunciantes-seccion was-sec-" + (sec.clase || "exacto"), sec.titulo + " · " + sec.lista.length));
-      const listaEl = el("div", "was-lista-anunciantes");
-      for (const anun of sec.lista) {
-        const fila = el("div", "was-fila-anunciante");
-        const foto = el("img", "was-fila-anunciante-foto");
-        foto.src = anun.foto || "";
-        foto.alt = "";
-        foto.loading = "lazy";
-        foto.addEventListener("error", () => foto.remove(), { once: true });
-        fila.appendChild(foto);
-        fila.appendChild(el("span", "was-fila-anunciante-nombre", anun.nombre));
-        const ver = el("button", "was-mini", "Ver anunciante");
-        ver.addEventListener("click", () => abrir(anun.urlBiblioteca));
-        fila.appendChild(ver);
-        listaEl.appendChild(fila);
-      }
-      caja.appendChild(listaEl);
+    // El anuncio del que se parte, aparte: nunca se mezcla con los resultados.
+    if (opciones.original) {
+      const o = el("div", "was-original");
+      const f = el("img", "was-fila-anunciante-foto");
+      f.src = opciones.original.foto || "";
+      f.alt = "";
+      f.addEventListener("error", () => f.remove(), { once: true });
+      o.append(f, el("span", "was-original-texto", "Buscando parecidos a <b></b>"));
+      o.querySelector("b").textContent = opciones.original.nombre;
+      caja.appendChild(o);
     }
+
+    const progreso = el("div", "was-progreso");
+    progreso.innerHTML = '<div class="was-progreso-barra"><i></i></div><span></span>';
+    const cuerpo = el("div");
+    caja.append(progreso, cuerpo);
+
+    const pintarSecciones = (secs) => {
+      cuerpo.innerHTML = "";
+      for (const sec of secs) {
+        if (!sec.lista.length) continue;
+        cuerpo.appendChild(el("div", "was-anunciantes-seccion was-sec-" + (sec.clase || "exacto"), sec.titulo + " · " + sec.lista.length));
+        const listaEl = el("div", "was-lista-anunciantes");
+        for (const anun of sec.lista) {
+          const fila = el("div", "was-fila-anunciante");
+          const foto = el("img", "was-fila-anunciante-foto");
+          foto.src = anun.foto || "";
+          foto.alt = "";
+          foto.loading = "lazy";
+          foto.addEventListener("error", () => foto.remove(), { once: true });
+          fila.appendChild(foto);
+          fila.appendChild(el("span", "was-fila-anunciante-nombre", anun.nombre));
+          const ver = el("button", "was-mini", "Ver anunciante");
+          ver.addEventListener("click", () => abrir(anun.urlBiblioteca));
+          fila.appendChild(ver);
+          listaEl.appendChild(fila);
+        }
+        cuerpo.appendChild(listaEl);
+      }
+    };
+
+    // Estado: buscando (con texto de avance) o terminado.
+    const actualizar = (secs, estado) => {
+      pintarSecciones(secs);
+      const hay = secs.some((sec) => sec.lista.length);
+      progreso.hidden = !estado?.buscando;
+      progreso.querySelector("span").textContent = estado?.texto || "";
+      if (!estado?.buscando && !hay) {
+        cuerpo.appendChild(el("p", "was-etiquetas-vacio", "No se encontraron otros anunciantes con este anuncio."));
+      }
+    };
+    actualizar(secciones, opciones.estado);
 
     fondo.appendChild(caja);
     fondo.addEventListener("click", (e) => e.target === fondo && cerrar());
     document.body.appendChild(fondo);
+    return { actualizar, abierto: () => fondo.isConnected };
   };
 
   const verAnunciantesOferta = (id) => {
@@ -2281,31 +2314,67 @@
       .split(" ").slice(0, 9).join(" ");
   };
 
+  // Mismo anunciante: misma pagina, o el mismo nombre (hay anunciantes con
+  // varias paginas que se llaman igual).
+  const normNombre = (n) => (n || "").toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
+
   const buscarSimilares = async (a) => {
     const frase = fraseCaracteristica(a);
     if (!frase) return aviso("Este anuncio no tiene texto para buscar", true);
-    aviso('Buscando anuncios parecidos a "' + frase + '"...');
-    let encontrados = [];
-    try {
-      encontrados = (await chrome.runtime.sendMessage({ tipo: "buscarSimilares", frase })) || [];
-    } catch {
-      return aviso("No se pudo hacer la busqueda", true);
-    }
+
     const propias = palabrasOferta(a);
     const huella = huellaOferta(a);
+    const nombrePropio = normNombre(a.paginaNombre);
     const exactos = new Map();
     const posibles = new Map();
-    for (const x of [...encontrados, ...anuncios.values()]) {
-      if (!x.paginaId || x.paginaId === a.paginaId) continue;
-      if (huella && huellaOferta(x) === huella) exactos.set(x.paginaId, datosAnunciante(x));
-      else if (parecido(propias, palabrasOferta(x)) >= UMBRAL_PARECIDO) posibles.set(x.paginaId, datosAnunciante(x));
-    }
-    for (const k of exactos.keys()) posibles.delete(k);
-    mostrarAnunciantes("Anuncios similares", [
+    let revisados = 0;
+
+    const clasificar = (lista) => {
+      for (const x of lista) {
+        revisados++;
+        if (!x.paginaId || x.paginaId === a.paginaId) continue;
+        if (nombrePropio && normNombre(x.paginaNombre) === nombrePropio) continue;
+        if (huella && huellaOferta(x) === huella) {
+          exactos.set(x.paginaId, datosAnunciante(x));
+          posibles.delete(x.paginaId);
+        } else if (!exactos.has(x.paginaId) && parecido(propias, palabrasOferta(x)) >= UMBRAL_PARECIDO) {
+          posibles.set(x.paginaId, datosAnunciante(x));
+        }
+      }
+    };
+    const secciones = () => [
       { titulo: "Mismo anuncio exacto", lista: [...exactos.values()], clase: "exacto" },
       { titulo: "Posibles (casi el mismo anuncio)", lista: [...posibles.values()], clase: "posible" },
-    ]);
+    ];
+
+    const busqueda = "b" + Date.now() + Math.random().toString(36).slice(2);
+    let ventana;
+    const alParcial = (msg) => {
+      if (msg?.tipo !== "similaresParcial" || msg.busqueda !== busqueda || !ventana?.abierto()) return;
+      clasificar(msg.anuncios || []);
+      ventana.actualizar(secciones(), { buscando: true, texto: msg.texto || "Buscando..." });
+    };
+    chrome.runtime.onMessage.addListener(alParcial);
+
+    // Lo que ya esta cargado en esta pagina cuenta desde el primer momento.
+    clasificar([...anuncios.values()]);
+    revisados = 0;
+    ventana = mostrarAnunciantes("Anuncios similares", secciones(), {
+      original: datosAnunciante(a),
+      estado: { buscando: true, texto: 'Buscando "' + frase + '" en la Biblioteca...' },
+      alCerrar: () => chrome.runtime.onMessage.removeListener(alParcial),
+    });
+
+    try {
+      const finales = (await chrome.runtime.sendMessage({ tipo: "buscarSimilares", frase, busqueda })) || [];
+      clasificar(finales);
+    } catch {
+      aviso("No se pudo completar la busqueda", true);
+    }
+    chrome.runtime.onMessage.removeListener(alParcial);
+    if (ventana.abierto()) ventana.actualizar(secciones(), { buscando: false });
   };
+
 
   const verFicha = (paginaId) => {
     const suyos = [...anuncios.values()].filter((x) => x.paginaId === paginaId);

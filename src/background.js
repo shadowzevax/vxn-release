@@ -1080,7 +1080,10 @@ chrome.runtime.onMessage.addListener((msg, _remitente, responder) => {
   }
 
   if (msg.tipo === "buscarSimilares") {
-    buscarSimilares(msg.frase).then(responder).catch(() => responder([]));
+    // Los avances van a la pestaña que pregunto, para ir pintandolos en vivo.
+    const avisar = (datos) =>
+      chrome.tabs.sendMessage(_remitente.tab.id, { tipo: "similaresParcial", busqueda: msg.busqueda, ...datos }).catch(() => {});
+    buscarSimilares(msg.frase, avisar).then(responder).catch(() => responder([]));
     return true;
   }
 
@@ -1188,7 +1191,7 @@ chrome.runtime.onInstalled.addListener(buscarActualizacion);
  * buscando la frase exacta, baja unas cuantas veces para cargar mas, pide al
  * panel de esa pestaña lo que leyo y la cierra.
  */
-async function buscarSimilares(frase) {
+async function buscarSimilares(frase, avisar = () => {}) {
   const url =
     "https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=ALL&media_type=all" +
     "&q=" + encodeURIComponent(frase) + "&search_type=keyword_exact_phrase";
@@ -1198,15 +1201,23 @@ async function buscarSimilares(frase) {
     pestana = await chrome.tabs.create({ url, active: false });
     await esperarCarga(pestana.id);
     let lista = null;
+    avisar({ anuncios: [], texto: "Abriendo la Biblioteca..." });
     for (let i = 0; i < 20 && !(lista && lista.length); i++) {
       await new Promise((r) => setTimeout(r, 700));
       lista = await volcar();
     }
-    for (let i = 0; i < 4; i++) {
+    avisar({ anuncios: lista || [], texto: "Revisando resultados (" + (lista || []).length + " anuncios)..." });
+    const TANDAS = 4;
+    for (let i = 0; i < TANDAS; i++) {
       await chrome.scripting.executeScript({ target: { tabId: pestana.id }, func: () => window.scrollTo(0, document.body.scrollHeight) }).catch(() => {});
       await new Promise((r) => setTimeout(r, 1800));
+      lista = (await volcar()) || lista;
+      avisar({
+        anuncios: lista || [],
+        texto: "Cargando mas resultados " + (i + 1) + "/" + TANDAS + " (" + (lista || []).length + " anuncios)...",
+      });
     }
-    return (await volcar()) || lista || [];
+    return lista || [];
   } finally {
     if (pestana) chrome.tabs.remove(pestana.id).catch(() => {});
   }

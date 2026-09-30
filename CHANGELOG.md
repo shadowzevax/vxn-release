@@ -8,6 +8,13 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.5.1
+
+- "Buscar anuncios similares": la ventana se abre al instante con barra de carga
+  y va mostrando los anunciantes en vivo mientras busca.
+- El anunciante de origen aparece arriba y ya no se cuela en los resultados
+  (tampoco sus otras paginas con el mismo nombre).
+
 ## 1.5.0
 - Pastilla violeta "X posibles": anunciantes con un anuncio casi igual
   (cambia precio, moneda o detalles), ademas de los exactos.
