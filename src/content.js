@@ -2541,7 +2541,11 @@
     ventana = mostrarAnunciantes("Anuncios similares", secciones(), {
       original: datosAnunciante(a),
       estado: { buscando: true, texto: 'Buscando "' + frase + '" en la Biblioteca...' },
-      alCerrar: () => chrome.runtime.onMessage.removeListener(alParcial),
+      alCerrar: () => {
+        chrome.runtime.onMessage.removeListener(alParcial);
+        // Cerrar la ventana cancela la busqueda (y su pestaña de fondo).
+        chrome.runtime.sendMessage({ tipo: "cancelarSimilares", busqueda }).catch(() => {});
+      },
     });
 
     try {

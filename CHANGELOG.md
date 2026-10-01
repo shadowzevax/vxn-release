@@ -8,6 +8,12 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.9.3
+
+- Cerrar la ventana de "Buscar anuncios similares" cancela la busqueda: se
+  cierra su pestaña de fondo y no se abren las pasadas que faltaban. Tambien
+  se cancela si se cierra la pestaña desde la que se busco.
+
 ## 1.9.2
 
 - Los enlaces a un anuncio ("Ver anuncio", "URL del anuncio en la

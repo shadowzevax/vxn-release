@@ -1,4 +1,4 @@
 {
-  "version": "1.9.2",
-  "notas": "Corregido: los enlaces a anuncios ya no abren filtrados por tu pais."
+  "version": "1.9.3",
+  "notas": "Cerrar la ventana de similares cancela la busqueda y cierra sus pestanas."
 }

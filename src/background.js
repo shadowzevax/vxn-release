@@ -1088,8 +1088,19 @@ chrome.runtime.onMessage.addListener((msg, _remitente, responder) => {
     // Los avances van a la pestaña que pregunto, para ir pintandolos en vivo.
     const avisar = (datos) =>
       chrome.tabs.sendMessage(_remitente.tab.id, { tipo: "similaresParcial", busqueda: msg.busqueda, ...datos }).catch(() => {});
-    buscarSimilares(msg.frase, avisar, msg.producto).then(responder).catch(() => responder([]));
+    const ctl = { cancelada: false, pestana: null, origen: _remitente.tab.id };
+    busquedasSimilares.set(msg.busqueda, ctl);
+    buscarSimilares(msg.frase, avisar, msg.producto, ctl)
+      .then(responder)
+      .catch(() => responder([]))
+      .finally(() => busquedasSimilares.delete(msg.busqueda));
     return true;
+  }
+
+  // Cerrar la ventana de similares = cancelar: se cierra su pestaña de fondo.
+  if (msg.tipo === "cancelarSimilares") {
+    cancelarSimilares(busquedasSimilares.get(msg.busqueda));
+    return;
   }
 
   if (msg.tipo === "cancelarWhatsapp") {
@@ -1201,7 +1212,20 @@ chrome.runtime.onInstalled.addListener(buscarActualizacion);
  * cualquier orden (mas amplia, atrapa copias con retoques). La pestaña se
  * abre con #vyxen-similares: el panel de alli usa ajustes neutros.
  */
-async function buscarSimilares(frase, avisar = () => {}, producto = "") {
+const busquedasSimilares = new Map(); // busqueda -> { cancelada, pestana, origen }
+
+function cancelarSimilares(ctl) {
+  if (!ctl) return;
+  ctl.cancelada = true;
+  if (ctl.pestana) chrome.tabs.remove(ctl.pestana).catch(() => {});
+}
+
+// Si se cierra la pestaña desde la que se busco, tambien se cancela.
+chrome.tabs.onRemoved.addListener((id) => {
+  for (const ctl of busquedasSimilares.values()) if (ctl.origen === id) cancelarSimilares(ctl);
+});
+
+async function buscarSimilares(frase, avisar = () => {}, producto = "", ctl = {}) {
   const juntos = new Map();
   const pasadas = [
     ["keyword_exact_phrase", "frase exacta", frase],
@@ -1210,18 +1234,23 @@ async function buscarSimilares(frase, avisar = () => {}, producto = "") {
   // Tercera: el nombre del producto, que los copiones casi nunca cambian.
   if (producto) pasadas.push(["keyword_exact_phrase", "nombre del producto", producto]);
   for (let i = 0; i < pasadas.length; i++) {
+    if (ctl.cancelada) break;
     const [tipo, nombre, texto] = pasadas[i];
     const etiqueta = "Pasada " + (i + 1) + "/" + pasadas.length + " (" + nombre + ")";
     const lista = await buscarSimilaresPasada(texto, tipo, (d) =>
       avisar({ ...d, texto: etiqueta + ": " + d.texto })
-    ).catch(() => []);
+    , ctl).catch(() => []);
     for (const x of lista) juntos.set(x.id, x);
   }
   return [...juntos.values()];
 }
 
-async function buscarSimilaresPasada(frase, tipo, avisar) {
+async function buscarSimilaresPasada(frase, tipo, avisar, ctl = {}) {
   await turnoSeguro("https://www.facebook.com/");
+  const seguir = () => {
+    if (ctl.cancelada) throw new Error("cancelada");
+  };
+  seguir();
   const url =
     "https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=ALL&media_type=all" +
     "&q=" + encodeURIComponent(frase) + "&search_type=" + tipo + "#vyxen-similares";
@@ -1229,16 +1258,19 @@ async function buscarSimilaresPasada(frase, tipo, avisar) {
   const volcar = () => chrome.tabs.sendMessage(pestana.id, { tipo: "volcarAnuncios" }).catch(() => null);
   try {
     pestana = await crearPestanaVigilada(url);
+    ctl.pestana = pestana.id;
     await esperarCarga(pestana.id);
     let lista = null;
     avisar({ anuncios: [], texto: "Abriendo la Biblioteca..." });
     for (let i = 0; i < 20 && !(lista && lista.length); i++) {
+      seguir();
       await new Promise((r) => setTimeout(r, 700));
       lista = await volcar();
     }
     avisar({ anuncios: lista || [], texto: "Revisando resultados (" + (lista || []).length + " anuncios)..." });
     const TANDAS = 4;
     for (let i = 0; i < TANDAS; i++) {
+      seguir();
       await chrome.scripting.executeScript({ target: { tabId: pestana.id }, func: () => window.scrollTo(0, document.body.scrollHeight) }).catch(() => {});
       const pausa = (await modoSeguro()) ? azar(2400, 4800) : 1800;
       await new Promise((r) => setTimeout(r, pausa));
