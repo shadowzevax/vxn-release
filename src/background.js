@@ -1090,7 +1090,7 @@ chrome.runtime.onMessage.addListener((msg, _remitente, responder) => {
       chrome.tabs.sendMessage(_remitente.tab.id, { tipo: "similaresParcial", busqueda: msg.busqueda, ...datos }).catch(() => {});
     const ctl = { cancelada: false, pestana: null, origen: _remitente.tab.id };
     busquedasSimilares.set(msg.busqueda, ctl);
-    buscarSimilares(msg.frase, avisar, msg.producto, ctl)
+    buscarSimilares(msg.pasadas, avisar, ctl)
       .then(responder)
       .catch(() => responder([]))
       .finally(() => busquedasSimilares.delete(msg.busqueda));
@@ -1225,14 +1225,10 @@ chrome.tabs.onRemoved.addListener((id) => {
   for (const ctl of busquedasSimilares.values()) if (ctl.origen === id) cancelarSimilares(ctl);
 });
 
-async function buscarSimilares(frase, avisar = () => {}, producto = "", ctl = {}) {
+// pasadas: [[tipo de busqueda, nombre para mostrar, texto], ...] (las decide
+// el panel: frase exacta, busqueda amplia, nombre del producto, etapa 2...).
+async function buscarSimilares(pasadas = [], avisar = () => {}, ctl = {}) {
   const juntos = new Map();
-  const pasadas = [
-    ["keyword_exact_phrase", "frase exacta", frase],
-    ["keyword_unordered", "busqueda amplia", frase],
-  ];
-  // Tercera: el nombre del producto, que los copiones casi nunca cambian.
-  if (producto) pasadas.push(["keyword_exact_phrase", "nombre del producto", producto]);
   for (let i = 0; i < pasadas.length; i++) {
     if (ctl.cancelada) break;
     const [tipo, nombre, texto] = pasadas[i];

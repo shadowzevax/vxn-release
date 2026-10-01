@@ -8,6 +8,14 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.10.0
+
+- "Buscar anuncios similares" por etapas: al terminar, marca con la casilla
+  los anunciantes que si son el mismo producto y pulsa "Buscar mas con los
+  correctos". Se busca de nuevo con los textos y el nombre de producto de esos
+  anuncios, y cada resultado se compara contra todos los anuncios correctos.
+  Los marcados pasan a "Confirmados por ti". Se puede repetir.
+
 ## 1.9.3
 
 - Cerrar la ventana de "Buscar anuncios similares" cancela la busqueda: se

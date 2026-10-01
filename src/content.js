@@ -2312,7 +2312,29 @@
     const progreso = el("div", "was-progreso");
     progreso.innerHTML = '<div class="was-progreso-barra"><i></i></div><span></span>';
     const cuerpo = el("div");
-    caja.append(progreso, cuerpo);
+    const pie = el("div", "was-similares-pie");
+    caja.append(progreso, cuerpo, pie);
+
+    // Pie con la accion sobre lo marcado (p. ej. "Buscar mas con los correctos").
+    let buscandoAhora = !!opciones.estado?.buscando;
+    const pintarPie = () => {
+      pie.innerHTML = "";
+      const sel = opciones.seleccion;
+      if (!sel) return;
+      const n = sel.marcados.size;
+      pie.appendChild(
+        el(
+          "span",
+          "was-similares-pie-texto",
+          n ? n + (n === 1 ? " marcado como correcto" : " marcados como correctos") : "Marca los que si son el mismo producto"
+        )
+      );
+      const b = el("button", "was-mini", sel.textoBoton);
+      b.disabled = !n || buscandoAhora;
+      b.title = buscandoAhora ? "Espera a que termine la busqueda" : "";
+      b.addEventListener("click", () => sel.alPulsar());
+      pie.appendChild(b);
+    };
 
     const pintarSecciones = (secs) => {
       cuerpo.innerHTML = "";
@@ -2322,6 +2344,18 @@
         const listaEl = el("div", "was-lista-anunciantes");
         for (const anun of sec.lista) {
           const fila = el("div", "was-fila-anunciante");
+          if (opciones.seleccion && sec.clase !== "confirmado") {
+            const marca = el("input", "was-fila-check");
+            marca.type = "checkbox";
+            marca.title = "Marcar como correcto (mismo producto)";
+            marca.checked = opciones.seleccion.marcados.has(anun.paginaId);
+            marca.addEventListener("change", () => {
+              if (marca.checked) opciones.seleccion.marcados.add(anun.paginaId);
+              else opciones.seleccion.marcados.delete(anun.paginaId);
+              pintarPie();
+            });
+            fila.appendChild(marca);
+          }
           const foto = el("img", "was-fila-anunciante-foto");
           foto.src = anun.foto || "";
           foto.alt = "";
@@ -2352,7 +2386,9 @@
 
     // Estado: buscando (con texto de avance) o terminado.
     const actualizar = (secs, estado) => {
+      buscandoAhora = !!estado?.buscando;
       pintarSecciones(secs);
+      pintarPie();
       const hay = secs.some((sec) => sec.lista.length);
       progreso.hidden = !estado?.buscando;
       progreso.querySelector("span").textContent = estado?.texto || "";
@@ -2460,74 +2496,102 @@
 
   const normNombre = (n) => (n || "").toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
 
+  /*
+   * "Buscar anuncios similares", por etapas.
+   *
+   * Etapa 1: se busca con el texto y el nombre del producto del anuncio de
+   * partida. Al terminar, el usuario marca los que SI son el mismo producto
+   * y pulsa "Buscar mas con los correctos": se vuelve a buscar con los
+   * textos de esos anuncios (los copiones reescriben el texto, asi que cada
+   * uno abre resultados que el original no encontraba). Cada resultado se
+   * compara contra TODOS los anuncios de referencia, y se puede repetir.
+   */
   const buscarSimilares = async (a) => {
     const frase = fraseCaracteristica(a);
     if (!frase) return aviso("Este anuncio no tiene texto para buscar", true);
 
-    const propias = palabrasOferta(a);
-    const huella = huellaOferta(a);
     const nombrePropio = normNombre(a.paginaNombre);
-    const exactos = new Map();
-    const posibles = new Map();
-    const pocos = new Map();
-    const producto = nombreProducto(a);
-    const productoPlano = plano(producto);
-    const palabrasProducto = new Set(productoPlano.split(" "));
+    const referencias = [];
+    const agregarReferencia = (x) => {
+      const producto = nombreProducto(x);
+      const productoPlano = plano(producto);
+      referencias.push({
+        x,
+        propias: palabrasOferta(x),
+        huella: huellaOferta(x),
+        producto,
+        productoPlano,
+        palabrasProducto: new Set(productoPlano.split(" ")),
+      });
+    };
+    agregarReferencia(a);
+    const productoPrincipal = referencias[0].producto;
+
     // Mismo producto: lo nombra y ademas comparte al menos 3 palabras del
     // tema (asi "grandes mentes" de una cerveza o un gobierno no cuela).
-    const mismoTema = (x) => {
-      if (!(" " + plano((x.titulo || "") + " " + (x.cuerpo || "")) + " ").includes(" " + productoPlano + " ")) return false;
+    const mismoTema = (ref, x) => {
+      if (!ref.productoPlano) return false;
+      if (!(" " + plano((x.titulo || "") + " " + (x.cuerpo || "")) + " ").includes(" " + ref.productoPlano + " ")) return false;
       let comunes = 0;
-      for (const w of palabrasOferta(x)) if (propias.has(w) && !palabrasProducto.has(plano(w))) comunes++;
+      for (const w of palabrasOferta(x)) if (ref.propias.has(w) && !ref.palabrasProducto.has(plano(w))) comunes++;
       return comunes >= 3;
     };
-    let revisados = 0;
+
+    // 3 = exacto, 2 = posible, 1 = poco probable, 0 = nada.
+    const nivelDe = (x) => {
+      const palabras = palabrasOferta(x);
+      const huella = huellaOferta(x);
+      let nivel = 0;
+      for (const ref of referencias) {
+        if (ref.huella && huella === ref.huella) return 3;
+        const sim = parecido(ref.propias, palabras);
+        if (sim >= UMBRAL_PARECIDO) nivel = Math.max(nivel, 2);
+        else if (sim >= 0.3 || mismoTema(ref, x)) nivel = Math.max(nivel, 1);
+      }
+      return nivel;
+    };
+
+    const nivel = new Map(); // paginaId -> nivel
+    const datos = new Map(); // paginaId -> datosAnunciante (con paises unidos)
+    const anuncioDe = new Map(); // paginaId -> anuncio que coincidio (para la etapa 2)
+    const confirmados = new Set(); // ya usados como referencia
+    const marcados = new Set();
 
     const clasificar = (lista) => {
       for (const x of lista) {
-        revisados++;
         if (!x.paginaId || x.paginaId === a.paginaId) continue;
         if (nombrePropio && normNombre(x.paginaNombre) === nombrePropio) continue;
-        const unir = (mapa) => {
-          const previo = mapa.get(x.paginaId);
-          const nuevo = datosAnunciante(x);
-          if (previo) nuevo.paises = [...new Set([...previo.paises, ...nuevo.paises])];
-          mapa.set(x.paginaId, nuevo);
-        };
-        if (huella && huellaOferta(x) === huella) {
-          const antes = posibles.get(x.paginaId);
-          unir(exactos);
-          if (antes) exactos.get(x.paginaId).paises = [...new Set([...antes.paises, ...exactos.get(x.paginaId).paises])];
-          posibles.delete(x.paginaId);
-          pocos.delete(x.paginaId);
-        } else if (exactos.has(x.paginaId)) {
-          // ya esta en el bloque mas fuerte
-        } else {
-          const sim = parecido(propias, palabrasOferta(x));
-          if (sim >= UMBRAL_PARECIDO) {
-            unir(posibles);
-            pocos.delete(x.paginaId);
-          } else if (
-            !posibles.has(x.paginaId) &&
-            (sim >= 0.3 || (productoPlano && mismoTema(x)))
-          ) {
-            unir(pocos);
-          }
+        if (confirmados.has(x.paginaId)) continue;
+        const n = nivelDe(x);
+        if (!n) continue;
+        const previo = datos.get(x.paginaId);
+        const nuevo = datosAnunciante(x);
+        if (previo) nuevo.paises = [...new Set([...previo.paises, ...nuevo.paises])];
+        if (n >= (nivel.get(x.paginaId) || 0)) {
+          // El anuncio que mejor coincide es el que representa al anunciante.
+          nivel.set(x.paginaId, n);
+          anuncioDe.set(x.paginaId, x);
+          datos.set(x.paginaId, nuevo);
+        } else if (previo) {
+          previo.paises = nuevo.paises;
         }
       }
     };
+
+    const lista = (n) => [...nivel].filter(([, v]) => v === n).map(([id]) => datos.get(id));
     const secciones = () => [
-      { titulo: "Mismo anuncio exacto", lista: [...exactos.values()], clase: "exacto" },
-      { titulo: "Posibles (casi el mismo anuncio)", lista: [...posibles.values()], clase: "posible" },
+      { titulo: "Confirmados por ti", lista: [...confirmados].map((id) => datos.get(id)).filter(Boolean), clase: "confirmado" },
+      { titulo: "Mismo anuncio exacto", lista: lista(3), clase: "exacto" },
+      { titulo: "Posibles (casi el mismo anuncio)", lista: lista(2), clase: "posible" },
       {
-        titulo: producto ? 'Poco probable (mismo producto "' + producto + '")' : "Poco probable (se parece algo)",
-        lista: [...pocos.values()],
+        titulo: productoPrincipal ? 'Poco probable (mismo producto "' + productoPrincipal + '")' : "Poco probable (se parece algo)",
+        lista: lista(1),
         clase: "poco",
       },
     ];
 
-    const busqueda = "b" + Date.now() + Math.random().toString(36).slice(2);
     let ventana;
+    let busqueda = null;
     const alParcial = (msg) => {
       if (msg?.tipo !== "similaresParcial" || msg.busqueda !== busqueda || !ventana?.abierto()) return;
       clasificar(msg.anuncios || []);
@@ -2535,29 +2599,76 @@
     };
     chrome.runtime.onMessage.addListener(alParcial);
 
+    const correr = async (pasadas, textoInicio) => {
+      busqueda = "b" + Date.now() + Math.random().toString(36).slice(2);
+      ventana.actualizar(secciones(), { buscando: true, texto: textoInicio });
+      try {
+        const finales = (await chrome.runtime.sendMessage({ tipo: "buscarSimilares", pasadas, busqueda })) || [];
+        clasificar(finales);
+      } catch {
+        aviso("No se pudo completar la busqueda", true);
+      }
+      if (ventana.abierto()) ventana.actualizar(secciones(), { buscando: false });
+    };
+
+    const yaBuscado = new Set();
+    const pasadasDe = (x, amplia) => {
+      const out = [];
+      const f = fraseCaracteristica(x);
+      if (f && !yaBuscado.has("e|" + f)) {
+        yaBuscado.add("e|" + f);
+        out.push(["keyword_exact_phrase", "frase exacta", f]);
+      }
+      if (amplia && f && !yaBuscado.has("u|" + f)) {
+        yaBuscado.add("u|" + f);
+        out.push(["keyword_unordered", "busqueda amplia", f]);
+      }
+      const prod = nombreProducto(x);
+      if (prod && !yaBuscado.has("p|" + plano(prod))) {
+        yaBuscado.add("p|" + plano(prod));
+        out.push(["keyword_exact_phrase", "nombre del producto", prod]);
+      }
+      return out;
+    };
+
+    const etapa2 = () => {
+      const nuevos = [...marcados].filter((id) => anuncioDe.has(id) && !confirmados.has(id));
+      if (!nuevos.length) return;
+      const pasadas = [];
+      for (const id of nuevos) {
+        const x = anuncioDe.get(id);
+        agregarReferencia(x);
+        confirmados.add(id);
+        nivel.delete(id);
+        pasadas.push(...pasadasDe(x, false));
+      }
+      marcados.clear();
+      if (!pasadas.length) {
+        // Sus textos ya se buscaron: solo se reclasifica con las nuevas referencias.
+        ventana.actualizar(secciones(), { buscando: false });
+        return aviso("Esos textos ya se habian buscado");
+      }
+      // Lo ya encontrado se vuelve a comparar con las referencias nuevas.
+      const ya = [...anuncioDe.values()];
+      clasificar(ya);
+      correr(pasadas, "Etapa 2: buscando con " + nuevos.length + (nuevos.length === 1 ? " anuncio correcto" : " anuncios correctos") + "...");
+    };
+
     // Lo que ya esta cargado en esta pagina cuenta desde el primer momento.
     clasificar([...anuncios.values()]);
-    revisados = 0;
     ventana = mostrarAnunciantes("Anuncios similares", secciones(), {
       original: datosAnunciante(a),
       estado: { buscando: true, texto: 'Buscando "' + frase + '" en la Biblioteca...' },
+      seleccion: { marcados, textoBoton: "Buscar mas con los correctos", alPulsar: etapa2 },
       alCerrar: () => {
         chrome.runtime.onMessage.removeListener(alParcial);
         // Cerrar la ventana cancela la busqueda (y su pestaña de fondo).
-        chrome.runtime.sendMessage({ tipo: "cancelarSimilares", busqueda }).catch(() => {});
+        if (busqueda) chrome.runtime.sendMessage({ tipo: "cancelarSimilares", busqueda }).catch(() => {});
       },
     });
 
-    try {
-      const finales = (await chrome.runtime.sendMessage({ tipo: "buscarSimilares", frase, producto, busqueda })) || [];
-      clasificar(finales);
-    } catch {
-      aviso("No se pudo completar la busqueda", true);
-    }
-    chrome.runtime.onMessage.removeListener(alParcial);
-    if (ventana.abierto()) ventana.actualizar(secciones(), { buscando: false });
+    await correr(pasadasDe(a, true), 'Buscando "' + frase + '" en la Biblioteca...');
   };
-
 
   const verFicha = (paginaId) => {
     const suyos = [...anuncios.values()].filter((x) => x.paginaId === paginaId);

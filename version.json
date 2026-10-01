@@ -1,4 +1,4 @@
 {
-  "version": "1.9.3",
-  "notas": "Cerrar la ventana de similares cancela la busqueda y cierra sus pestanas."
+  "version": "1.10.0",
+  "notas": "Similares por etapas: marca los correctos y busca mas con ellos."
 }

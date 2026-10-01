@@ -2683,3 +2683,46 @@ html.was-tema-pestana .was-rapida {
   opacity: 0.45;
   outline: 2px dashed #8b5cf6;
 }
+
+/* ===================== similares: confirmados, casillas y pie ===================== */
+
+.was-sec-confirmado {
+  color: #fff;
+  background: #12a150;
+}
+
+.was-fila-check {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #12a150;
+  cursor: pointer;
+}
+
+.was-similares-pie {
+  position: sticky;
+  bottom: -1px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 0 2px;
+  background: #fff;
+  border-top: 1px solid #e5e7eb;
+}
+
+.was-similares-pie:empty {
+  display: none;
+}
+
+.was-similares-pie-texto {
+  font-size: 12.5px;
+  color: #6b7280;
+}
+
+.was-similares-pie .was-mini:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
