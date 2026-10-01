@@ -8,6 +8,16 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.10.1
+
+- Tarjetas sin decorar tras volver atras o regresar a una busqueda ya vista:
+  Meta las pinta desde su cache sin volver a mandar los datos; ahora se
+  recuperan de lo ya leido en la pagina.
+- Autocomprobacion cada pocos segundos: si hay tarjetas con datos pero sin
+  barra, se anota en consola ("Tarjetas sin decorar") con el motivo y se
+  repintan solas.
+- El aviso "El contador bajo" ya no salta al cambiar de busqueda.
+
 ## 1.10.0
 
 - "Buscar anuncios similares" por etapas: al terminar, marca con la casilla

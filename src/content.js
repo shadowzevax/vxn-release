@@ -33,6 +33,18 @@
   // eslint-disable-next-line no-unused-vars
   const SEMILLA_UI = "Vnl4ZW4gKGMpIDIwMjYgUml4aXVzLiBUb2RvcyBsb3MgZGVyZWNob3MgcmVzZXJ2YWRvcy4gUHJvaGliaWRhIGxhIG1vZGlmaWNhY2lvbiwgY29waWEgbyByZWRpc3RyaWJ1Y2lvbiBzaW4gYXV0b3JpemFjaW9uIGVzY3JpdGEgZGUgUml4aXVzLg==";
   const anuncios = new Map(); // ad_archive_id -> datos
+  // Todo lo leido en esta pagina, aunque se cambie de busqueda (ver pintar).
+  const archivo = new Map();
+  let tRecuperar = 0;
+  const recalculoTrasRecuperar = () => {
+    clearTimeout(tRecuperar);
+    tRecuperar = setTimeout(() => {
+      recalcularCopiones();
+      recalcularPosibles();
+      aplicarFiltros();
+      actualizarBandejaRapida();
+    }, 300);
+  };
   const telefonos = new Map(); // id de anuncio -> { telefono, mensaje, origen }
 
   const RE_ID = /(?:Identificador de la biblioteca|Library ID|ID da biblioteca)[:\s]*(\d{8,})/i;
@@ -3245,7 +3257,18 @@
     }
 
     for (const [nodo, id] of hallados) {
-      const a = anuncios.get(id);
+      let a = anuncios.get(id);
+      /*
+       * Al volver atras o regresar a una busqueda ya vista, Meta pinta las
+       * tarjetas desde su cache, sin volver a pedir los datos: no llega nada
+       * nuevo y las tarjetas quedaban sin decorar. Se recuperan del archivo
+       * de todo lo leido en esta pagina.
+       */
+      if (!a && archivo.has(id)) {
+        a = archivo.get(id);
+        anuncios.set(id, a);
+        recalculoTrasRecuperar();
+      }
       if (!a) continue;
 
       // Atajo: la tarjeta ya decorada con este mismo anuncio no hace falta
@@ -6133,7 +6156,9 @@
   );
 
   const actualizarBandejaRapida = () => {
-    if (contadores.total < totalPrevio - 2) diagnostico("El contador bajo", { antes: totalPrevio, ahora: contadores.total });
+    // Si la busqueda acaba de cambiar (atras, otro pais...), bajar es lo normal.
+    const mismaBusqueda = claveDeBusqueda() === ultimaClaveBusqueda;
+    if (mismaBusqueda && contadores.total < totalPrevio - 2) diagnostico("El contador bajo", { antes: totalPrevio, ahora: contadores.total });
     totalPrevio = contadores.total;
     const b = document.getElementById("was-badge");
     if (b) b.textContent = contadores.visibles + "/" + contadores.total;
@@ -6205,6 +6230,7 @@
         a.copias = Math.max(previo.copias || 1, a.copias || 1);
       }
       anuncios.set(a.id, a);
+      archivo.set(a.id, a);
     }
     recalcularCopiones();
     recalcularPosibles();
@@ -6301,6 +6327,7 @@
 
         anuncios.clear();
         copiones.clear();
+        totalPrevio = 0; // empezar de cero no es "el contador bajo"
         avisadoTope = false;
         refrescarTodo();
       }, 1200);
@@ -6524,6 +6551,63 @@
     }
     for (const n of document.querySelectorAll("[data-was-refrescar]")) n._wasRefrescar?.();
   };
+
+  /*
+   * Autocomprobacion: tarjetas de la pagina cuyo anuncio SI tenemos pero que
+   * se quedaron sin barra. Si pasa dos veces seguidas (no es un instante de
+   * transicion), se anota en consola con el motivo y se repinta todo de cero.
+   */
+  let sinBarraAntes = 0;
+  let vuelta = 0;
+  setInterval(() => {
+    if (!soyLaVigente() || document.hidden || MODO_SIMILARES) return;
+    const motivos = { sinDatos: 0, sinContenedor: 0, sinBarra: 0, sinMarca: 0 };
+    const ejemplos = [];
+    const vistos = new Set();
+    // Lo barato (los identificadores ya marcados) cada vez; el recorrido de
+    // todo el texto, que es lo que encuentra los NO marcados, una de cada 4.
+    vuelta++;
+    const nodos =
+      vuelta % 4 === 0
+        ? (() => {
+            const out = [];
+            const paseo = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+            let n;
+            while ((n = paseo.nextNode())) if (n.nodeValue && /biblioteca|Library ID/i.test(n.nodeValue)) out.push(n);
+            return out;
+          })()
+        : [...document.querySelectorAll("[data-was-idtxt]")].map((e) => e.firstChild || e);
+    for (const nodo of nodos) {
+      if (!nodo || !nodo.parentElement) continue;
+      const m = RE_ID.exec(nodo.nodeValue ?? nodo.textContent ?? "");
+      if (!m || vistos.has(m[1]) || nodo.parentElement?.closest(".was-panel-flotante, .was-mural, .was-suelto-fondo")) continue;
+      vistos.add(m[1]);
+      if (!nodo.parentElement.hasAttribute("data-was-idtxt")) motivos.sinMarca++;
+      if (!anuncios.has(m[1])) {
+        if (!archivo.has(m[1])) motivos.sinDatos++;
+        continue;
+      }
+      const t = contenedorTarjeta(nodo.parentElement);
+      if (!t) {
+        motivos.sinContenedor++;
+        continue;
+      }
+      if (!t.querySelector(".was-barra")) {
+        motivos.sinBarra++;
+        if (ejemplos.length < 3) ejemplos.push(m[1]);
+      }
+    }
+    const fallan = motivos.sinBarra + motivos.sinContenedor;
+    if (fallan && sinBarraAntes) {
+      diagnostico("Tarjetas sin decorar: se repintan", { ...motivos, tarjetas: vistos.size, ejemplos, url: location.search.slice(0, 160) });
+      paginaMarcada = false;
+      document.querySelectorAll("[data-was-id]").forEach((x) => {
+        if (!x.querySelector(".was-barra")) delete x.dataset.wasId;
+      });
+      pintar();
+    }
+    sinBarraAntes = fallan;
+  }, 4000);
 
   /*
    * Lo que se cambia en una pestaña (filtros, colores, accesos...) se aplica

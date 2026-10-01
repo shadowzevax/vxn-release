@@ -1,4 +1,4 @@
 {
-  "version": "1.10.0",
-  "notas": "Similares por etapas: marca los correctos y busca mas con ellos."
+  "version": "1.10.1",
+  "notas": "Corregidas tarjetas sin decorar al volver atras; autocomprobacion que las repinta."
 }
