@@ -8,6 +8,14 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.13.0
+
+- "Crear con IA" > "Palabras para buscar similares": pide a ChatGPT entre 5 y 8
+  busquedas cortas y precisas para encontrar en la Biblioteca a otros
+  anunciantes del mismo producto. Combina el anuncio con el texto de su pagina
+  de ventas (si el anuncio lleva a una web); si no se puede leer, usa solo el anuncio.
+- El boton "Enviar" pasa al final de la barra de cada tarjeta.
+
 ## 1.12.0
 
 - Nuevo boton "Crear con IA" en cada tarjeta (destellos): 8 analisis del

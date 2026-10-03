@@ -1047,6 +1047,11 @@ chrome.runtime.onMessage.addListener((msg, _remitente, responder) => {
     return true;
   }
 
+  if (msg.tipo === "textoLanding") {
+    textoLanding(msg.url).then(responder).catch(() => responder(null));
+    return true;
+  }
+
   if (msg.tipo === "contarAnuncios") {
     contarAnuncios(msg.paginaId).then(responder);
     return true;
@@ -1494,4 +1499,58 @@ async function leerAnunciosDe(paginaId) {
   } finally {
     if (pestana) chrome.tabs.remove(pestana.id).catch(() => {});
   }
+}
+
+
+/* ===================== texto de la pagina de ventas ===================== */
+/*
+ * Lo importante de una pagina de ventas para "Palabras para buscar
+ * similares": titulo, descripcion, encabezados y el texto visible. Primero
+ * se pide el HTML (rapido); si casi no trae texto (paginas que se arman con
+ * JavaScript), se abre en una pestaña de fondo y se lee lo que se ve.
+ * Sin el permiso de la pagina de destino solo se usa el HTML descargado.
+ */
+const decodificarHtml = (t) =>
+  t.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&ndash;/g, "–").replace(/&mdash;/g, "—")
+    .replace(/&#x([\da-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n));
+
+function textoDeHtml(html) {
+  const meta = (n) => (html.match(new RegExp('<meta[^>]+(?:name|property)=["\']' + n + '["\'][^>]+content=["\']([^"\']*)', "i")) || [])[1] || "";
+  const titulo = (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "";
+  const cuerpo = html
+    .replace(/<(script|style|noscript|svg|template|iframe)[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<\/(p|div|h\d|li|br|section|tr)>/gi, "\n")
+    .replace(/<[^>]+>/g, " ");
+  const lineas = decodificarHtml(cuerpo).split("\n").map((l) => l.replace(/\s+/g, " ").trim()).filter((l) => l.length > 2);
+  const todas = [titulo, meta("description"), meta("og:title"), meta("og:description"), ...lineas]
+    .map((x) => decodificarHtml(x || "").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  return [...new Set(todas)].join("\n");
+}
+
+async function textoLanding(url) {
+  if (!url) return null;
+  let texto = "";
+  try {
+    await turnoSeguro(url);
+    const r = await fetch(url, { credentials: "omit" });
+    if (r.ok) texto = textoDeHtml(await r.text());
+  } catch {}
+  // Leerla abierta en una pestaña si necesita el permiso de la pagina de destino.
+  if (texto.length < 400 && (await chrome.permissions.contains({ origins: ["<all_urls>"] }))) {
+    let pestana;
+    try {
+      pestana = await crearPestanaVigilada(url);
+      await esperarCarga(pestana.id);
+      await new Promise((r) => setTimeout(r, 2500));
+      const leido = await ejecutar(pestana.id, () => (document.title + "\n" + (document.body?.innerText || "")).slice(0, 20000));
+      if (leido && leido.length > texto.length) texto = leido;
+    } catch {} finally {
+      if (pestana) chrome.tabs.remove(pestana.id).catch(() => {});
+    }
+  }
+  texto = texto.replace(/\n{3,}/g, "\n\n").trim();
+  return texto ? { texto: texto.slice(0, 6000) } : null;
 }

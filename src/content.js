@@ -1767,6 +1767,43 @@
     ["Embudo de quiz", "Arma un embudo de quiz para el producto del anuncio de abajo: las preguntas, las opciones de respuesta, como cada camino segmenta al cliente y el mensaje de resultado que lleva a la oferta."],
   ];
 
+  /*
+   * Palabras para buscar en la Biblioteca a otros anunciantes del mismo
+   * producto. Ademas del anuncio, lee su pagina de ventas (si la tiene y el
+   * permiso de la pagina de destino esta activado): ahi suele estar el
+   * nombre del producto, lo que incluye y las frases que los copiones repiten.
+   */
+  const palabrasParaSimilares = async (a) => {
+    // La pestaña se abre ya, dentro del clic: si se abriera despues de
+    // esperar a la web, el navegador la bloquearia como ventana emergente.
+    const ventana = window.open("about:blank", "_blank");
+    const destino = limpiarUrl(a.linkUrl);
+    let web = null;
+    if (destino && !/facebook\.com|instagram\.com|whatsapp\.com|wa\.me|fb\.me|messenger\.com/i.test(destino)) {
+      aviso("Leyendo la pagina de ventas del anuncio...");
+      web = await chrome.runtime.sendMessage({ tipo: "textoLanding", url: destino }).catch(() => null);
+    }
+    const partes = [];
+    if (a.titulo) partes.push("Titulo: " + a.titulo);
+    if (a.cuerpo) partes.push("Texto del anuncio:\n" + a.cuerpo);
+    if (a.ctaTexto) partes.push("Llamada a la accion: " + a.ctaTexto);
+    if (destino) partes.push("Enlace: " + destino);
+    if (web?.texto) partes.push("Contenido de su pagina de ventas:\n" + web.texto);
+    const encargo =
+      "Quiero encontrar en la Biblioteca de Anuncios de Meta a OTROS anunciantes que venden este mismo producto " +
+      "(copias, revendedores o competidores directos). Con la informacion de abajo dame SOLO entre 5 y 8 busquedas " +
+      "cortas y precisas (de 1 a 4 palabras cada una), ordenadas de la mas precisa a la mas amplia: el nombre del " +
+      "producto, el tipo de producto con su rasgo distintivo y las frases que casi seguro repiten quienes lo venden. " +
+      "Nada generico (nada de 'oferta', 'envio gratis', 'curso'). Devuelve solo la lista, una por linea, sin explicaciones. " +
+      "Responde en español.";
+    let cuerpo = partes.join("\n\n");
+    const url = (t) => "https://chatgpt.com/?temporary-chat=true&q=" + encodeURIComponent(encargo + '\n\n"""\n' + t + '\n"""');
+    while (url(cuerpo).length > 28000 && cuerpo.length > 50) cuerpo = cuerpo.slice(0, Math.floor(cuerpo.length * 0.9)) + "…";
+    if (destino && !web?.texto) aviso("No se pudo leer la pagina de ventas: se usa solo el anuncio", true);
+    if (ventana) ventana.location.href = url(cuerpo);
+    else abrir(url(cuerpo));
+  };
+
   const crearConIA = (a, encargo) => {
     const copy = (a.cuerpo || "").trim();
     if (!copy && !a.titulo) return aviso("Este anuncio no tiene texto para analizar", true);
@@ -1925,7 +1962,10 @@
       accion(
         "Crear con IA",
         ICONOS.crear,
-        PROMPTS_CREAR.map(([titulo, encargo]) => [titulo, () => crearConIA(a, encargo)])
+        [
+          ["Palabras para buscar similares", () => palabrasParaSimilares(a)],
+          ...PROMPTS_CREAR.map(([titulo, encargo]) => [titulo, () => crearConIA(a, encargo)]),
+        ]
       )
     );
 
@@ -1943,7 +1983,7 @@
     ]);
     opcionesEnviar.push(["Todos los enlaces", () => elegirRed("Todos los enlaces", textoEnlaces, null)]);
 
-    bandeja.appendChild(accion("Enviar", ICONOS.compartir, opcionesEnviar));
+    const accionEnviar = accion("Enviar", ICONOS.compartir, opcionesEnviar);
 
     // --- guardar en seguimiento -------------------------------------------
     const favorito = el("div", "was-accion was-accion-fav");
@@ -2029,6 +2069,9 @@
       conectarBotonWa(a, accionWa.querySelector(".was-accion-btn"));
       bandeja.appendChild(accionWa);
     }
+
+    // Enviar, al final de la barra.
+    bandeja.appendChild(accionEnviar);
 
     /*
      * Distintivo de la descarga multiple: vive siempre en la barra, oculto
