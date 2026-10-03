@@ -8,6 +8,13 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.14.0
+
+- "Buscar anuncios similares" tambien lee la pagina de ventas del anuncio
+  (como "Palabras para buscar similares") y saca de ella el nombre del
+  producto (p. ej. "Grandes Mentes", "Hair Tonic"); busca por ese nombre
+  primero, que suele ser la busqueda mas certera.
+
 ## 1.13.0
 
 - "Crear con IA" > "Palabras para buscar similares": pide a ChatGPT entre 5 y 8

@@ -2604,6 +2604,31 @@
     const propio = [...texto.matchAll(/(?<=[\p{Ll},]\s)(\p{Lu}\p{Ll}{2,}(?:\s+\p{Lu}\p{Ll}{2,}){1,2})(?![\p{L}])/gu)].map((m) => m[1]).filter(valido);
     return propio.length ? propio[0].trim() : "";
   };
+  /*
+   * Nombre del producto segun su pagina de ventas: el titulo (antes de "|",
+   * "–" o " - ", que suele separar la tienda) y lo que nombreProducto encuentre
+   * en el texto. Se descartan el nombre de la pagina del anunciante y
+   * cosas genericas.
+   */
+  const nombresDeLaWeb = (texto, a) => {
+    if (!texto) return [];
+    const out = [];
+    const tienda = plano(a.paginaNombre);
+    const vale = (t) => {
+      const w = plano(t).split(" ").filter(Boolean);
+      return w.length >= 1 && w.length <= 4 && plano(t).length >= 5 && plano(t) !== tienda &&
+        !/^(inicio|home|tienda|shop|productos?|checkout|carrito|oferta|pagina principal|default title)$/.test(plano(t));
+    };
+    const titulo = texto.split("\n")[0] || "";
+    const trozo = titulo.split(/\s[|–—-]\s|\s\|\s?/)[0].trim();
+    if (vale(trozo)) out.push(trozo);
+    const delTexto = nombreProducto({ cuerpo: texto.slice(0, 3000) });
+    // Del texto solo si se repite (un nombre de producto aparece varias veces).
+    const veces = delTexto ? plano(texto).split(plano(delTexto)).length - 1 : 0;
+    if (delTexto && veces >= 2 && plano(delTexto).includes(" ") && vale(delTexto) && !out.some((x) => plano(x) === plano(delTexto))) out.push(delTexto);
+    return out.slice(0, 2);
+  };
+
   const plano = (t) => (t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 
   // Mismo anunciante: misma pagina, o el mismo nombre (hay anunciantes con
@@ -2823,7 +2848,27 @@
       },
     });
 
-    await correr(pasadasDe(a, true), 'Buscando "' + frase + '" en la Biblioteca...');
+    /*
+     * Como en "Palabras para buscar similares": se lee la pagina de ventas del
+     * anuncio. Su titulo casi siempre trae el nombre del producto tal cual lo
+     * venden ("Grandes Mentes | Actividades para..."), que suele ser la busqueda
+     * mas certera para encontrar a quien vende lo mismo.
+     */
+    const pasadas = pasadasDe(a, true);
+    const destino = limpiarUrl(a.linkUrl);
+    if (destino && !/facebook\.com|instagram\.com|whatsapp\.com|wa\.me|fb\.me|messenger\.com/i.test(destino)) {
+      ventana.actualizar(secciones(), { buscando: true, texto: "Leyendo la pagina de ventas del anuncio..." });
+      const web = await chrome.runtime.sendMessage({ tipo: "textoLanding", url: destino }).catch(() => null);
+      if (!ventana.abierto()) return;
+      for (const nombre of nombresDeLaWeb(web?.texto || "", a)) {
+        const clave = "p|" + plano(nombre);
+        if (yaBuscado.has(clave)) continue;
+        yaBuscado.add(clave);
+        // La mas certera va primero.
+        pasadas.unshift(["keyword_exact_phrase", "nombre en su web", nombre]);
+      }
+    }
+    await correr(pasadas, 'Buscando "' + frase + '" en la Biblioteca...');
   };
 
   const verFicha = (paginaId) => {

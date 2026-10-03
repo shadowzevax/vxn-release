@@ -1,4 +1,4 @@
 {
-  "version": "1.13.0",
-  "notas": "Palabras para buscar similares con IA (anuncio + pagina de ventas); Enviar al final."
+  "version": "1.14.0",
+  "notas": "Similares busca tambien por el nombre del producto de su pagina de ventas."
 }
