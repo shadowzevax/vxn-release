@@ -8,6 +8,14 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.15.0
+
+- "Buscar anuncios similares" le pide a ChatGPT (siempre en chat temporal, en
+  una pestaña de fondo que se cierra sola, sin necesidad de iniciar sesion)
+  las palabras de busqueda a partir del anuncio y su pagina de ventas, lee la
+  respuesta y busca con las 5 mejores. Si ChatGPT no responde, sigue sin ellas.
+- Permiso nuevo: chatgpt.com (para leer la respuesta).
+
 ## 1.14.0
 
 - "Buscar anuncios similares" tambien lee la pagina de ventas del anuncio

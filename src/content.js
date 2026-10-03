@@ -1773,6 +1773,34 @@
    * permiso de la pagina de destino esta activado): ahi suele estar el
    * nombre del producto, lo que incluye y las frases que los copiones repiten.
    */
+  const ENCARGO_PALABRAS =
+    "Quiero encontrar en la Biblioteca de Anuncios de Meta a OTROS anunciantes que venden este mismo producto " +
+    "(copias, revendedores o competidores directos). Con la informacion de abajo dame SOLO entre 5 y 8 busquedas " +
+    "cortas y precisas (de 1 a 4 palabras cada una), ordenadas de la mas precisa a la mas amplia: el nombre del " +
+    "producto, el tipo de producto con su rasgo distintivo y las frases que casi seguro repiten quienes lo venden. " +
+    "Nada generico (nada de 'oferta', 'envio gratis', 'curso'). Devuelve solo la lista, una por linea, sin explicaciones. " +
+    "Responde en español.";
+
+  const datosParaPalabras = (a, destino, web) => {
+    const partes = [];
+    if (a.titulo) partes.push("Titulo: " + a.titulo);
+    if (a.cuerpo) partes.push("Texto del anuncio:\n" + a.cuerpo);
+    if (a.ctaTexto) partes.push("Llamada a la accion: " + a.ctaTexto);
+    if (destino) partes.push("Enlace: " + destino);
+    if (web?.texto) partes.push("Contenido de su pagina de ventas:\n" + web.texto);
+    return partes.join("\n\n");
+  };
+
+  // Las busquedas que devuelve la IA: una por linea, sin viñetas ni comillas.
+  const busquedasDeLaIA = (texto) =>
+    [...new Set(
+      (texto || "")
+        .split("\n")
+        .map((l) => l.replace(/^\s*(?:[-*•·]|\d+[.)-])\s*/, "").replace(/["“”«»*`]/g, "").replace(/\s+/g, " ").trim())
+        .filter((l) => l && l.split(" ").length <= 5 && l.length <= 50 && !/[:?]$/.test(l))
+        .filter((l) => !/^(iniciar sesi[oó]n|registrarse.*|log in|sign up.*|copiar|compartir)$/i.test(l))
+    )].slice(0, 8);
+
   const palabrasParaSimilares = async (a) => {
     // La pestaña se abre ya, dentro del clic: si se abriera despues de
     // esperar a la web, el navegador la bloquearia como ventana emergente.
@@ -1783,20 +1811,8 @@
       aviso("Leyendo la pagina de ventas del anuncio...");
       web = await chrome.runtime.sendMessage({ tipo: "textoLanding", url: destino }).catch(() => null);
     }
-    const partes = [];
-    if (a.titulo) partes.push("Titulo: " + a.titulo);
-    if (a.cuerpo) partes.push("Texto del anuncio:\n" + a.cuerpo);
-    if (a.ctaTexto) partes.push("Llamada a la accion: " + a.ctaTexto);
-    if (destino) partes.push("Enlace: " + destino);
-    if (web?.texto) partes.push("Contenido de su pagina de ventas:\n" + web.texto);
-    const encargo =
-      "Quiero encontrar en la Biblioteca de Anuncios de Meta a OTROS anunciantes que venden este mismo producto " +
-      "(copias, revendedores o competidores directos). Con la informacion de abajo dame SOLO entre 5 y 8 busquedas " +
-      "cortas y precisas (de 1 a 4 palabras cada una), ordenadas de la mas precisa a la mas amplia: el nombre del " +
-      "producto, el tipo de producto con su rasgo distintivo y las frases que casi seguro repiten quienes lo venden. " +
-      "Nada generico (nada de 'oferta', 'envio gratis', 'curso'). Devuelve solo la lista, una por linea, sin explicaciones. " +
-      "Responde en español.";
-    let cuerpo = partes.join("\n\n");
+    const encargo = ENCARGO_PALABRAS;
+    let cuerpo = datosParaPalabras(a, destino, web);
     const url = (t) => "https://chatgpt.com/?temporary-chat=true&q=" + encodeURIComponent(encargo + '\n\n"""\n' + t + '\n"""');
     while (url(cuerpo).length > 28000 && cuerpo.length > 50) cuerpo = cuerpo.slice(0, Math.floor(cuerpo.length * 0.9)) + "…";
     if (destino && !web?.texto) aviso("No se pudo leer la pagina de ventas: se usa solo el anuncio", true);
@@ -2856,9 +2872,10 @@
      */
     const pasadas = pasadasDe(a, true);
     const destino = limpiarUrl(a.linkUrl);
+    let web = null;
     if (destino && !/facebook\.com|instagram\.com|whatsapp\.com|wa\.me|fb\.me|messenger\.com/i.test(destino)) {
       ventana.actualizar(secciones(), { buscando: true, texto: "Leyendo la pagina de ventas del anuncio..." });
-      const web = await chrome.runtime.sendMessage({ tipo: "textoLanding", url: destino }).catch(() => null);
+      web = await chrome.runtime.sendMessage({ tipo: "textoLanding", url: destino }).catch(() => null);
       if (!ventana.abierto()) return;
       for (const nombre of nombresDeLaWeb(web?.texto || "", a)) {
         const clave = "p|" + plano(nombre);
@@ -2868,6 +2885,34 @@
         pasadas.unshift(["keyword_exact_phrase", "nombre en su web", nombre]);
       }
     }
+
+    /*
+     * ChatGPT (chat temporal, en una pestaña de fondo que se cierra sola)
+     * propone las busquedas con el anuncio y su pagina de ventas. Si no
+     * responde, se sigue sin ellas.
+     */
+    ventana.actualizar(secciones(), { buscando: true, texto: "Pidiendo a ChatGPT las palabras de busqueda..." });
+    busqueda = "ia" + Date.now() + Math.random().toString(36).slice(2);
+    let cuerpoIA = datosParaPalabras(a, destino, web);
+    if (cuerpoIA.length > 12000) cuerpoIA = cuerpoIA.slice(0, 12000) + "…";
+    const respuesta = await chrome.runtime
+      .sendMessage({ tipo: "preguntarChatGPT", busqueda, pregunta: ENCARGO_PALABRAS + '\n\n"""\n' + cuerpoIA + '\n"""' })
+      .catch(() => null);
+    if (!ventana.abierto()) return;
+    // Las 5 primeras (vienen de la mas precisa a la mas amplia): mas pasadas
+    // alargan mucho la busqueda.
+    const deLaIA = busquedasDeLaIA(respuesta).slice(0, 5);
+    const nuevasIA = [];
+    for (const t of deLaIA) {
+      const clave = "e|" + plano(t);
+      if (yaBuscado.has(clave) || yaBuscado.has("p|" + plano(t))) continue;
+      yaBuscado.add(clave);
+      nuevasIA.push(["keyword_exact_phrase", "IA: " + t, t]);
+    }
+    // Despues del nombre de la web (lo mas certero) y antes de las de siempre.
+    const nWeb = pasadas.filter((x) => x[1] === "nombre en su web").length;
+    pasadas.splice(nWeb, 0, ...nuevasIA);
+    if (deLaIA.length) aviso("ChatGPT propuso: " + deLaIA.join(", "));
     await correr(pasadas, 'Buscando "' + frase + '" en la Biblioteca...');
   };
 

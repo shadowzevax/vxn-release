@@ -1047,6 +1047,17 @@ chrome.runtime.onMessage.addListener((msg, _remitente, responder) => {
     return true;
   }
 
+  if (msg.tipo === "preguntarChatGPT") {
+    // Con "busqueda", cerrar la ventana de similares tambien la cancela.
+    const ctl = { cancelada: false, pestana: null, origen: _remitente.tab?.id };
+    if (msg.busqueda) busquedasSimilares.set(msg.busqueda, ctl);
+    preguntarChatGPT(msg.pregunta, ctl)
+      .then(responder)
+      .catch(() => responder(null))
+      .finally(() => msg.busqueda && busquedasSimilares.delete(msg.busqueda));
+    return true;
+  }
+
   if (msg.tipo === "textoLanding") {
     textoLanding(msg.url).then(responder).catch(() => responder(null));
     return true;
@@ -1554,3 +1565,78 @@ async function textoLanding(url) {
   texto = texto.replace(/\n{3,}/g, "\n\n").trim();
   return texto ? { texto: texto.slice(0, 6000) } : null;
 }
+
+/* ===================== preguntar a ChatGPT (chat temporal) ===================== */
+/*
+ * Abre ChatGPT en una pestaña de fondo, SIEMPRE en chat temporal (no queda
+ * en el historial), con la pregunta ya puesta; espera a que termine de
+ * responder y devuelve el texto de la respuesta. Usa la sesion de ChatGPT
+ * del propio navegador. Si no responde en 2 minutos, devuelve null.
+ */
+function leerRespuestaChatGPT() {
+  // Aviso de cookies: se rechazan las no esenciales para que no tape nada.
+  for (const b of document.querySelectorAll("button")) {
+    if (/rechazar|reject|solo las esenciales|only essential/i.test(b.textContent || "")) {
+      b.click();
+      break;
+    }
+  }
+  const usuario = document.querySelectorAll('[data-message-author-role="user"]');
+  const msgs = document.querySelectorAll('[data-message-author-role="assistant"]');
+  // Sin sesion, ChatGPT deja la pregunta escrita pero no la envia: se envia.
+  if (!usuario.length && !msgs.length) {
+    const caja = document.querySelector("#prompt-textarea");
+    const enviar = document.querySelector('[data-testid="send-button"], #composer-submit-button, button[aria-label*="Enviar"], button[aria-label*="Send"]');
+    if (caja && (caja.innerText || caja.value || "").trim() && enviar && !enviar.disabled) enviar.click();
+  }
+  const escribiendo = !!document.querySelector('[data-testid="stop-button"], button[aria-label*="Stop"], button[aria-label*="Detener"]');
+  let texto = msgs.length ? msgs[msgs.length - 1].innerText.trim() : "";
+  if (!texto) {
+    // Sin sesion la respuesta no lleva marcas: se toma el bloque del boton
+    // "Copiar respuesta", subiendo mientras no se coma tambien la pregunta.
+    const copiar = [...document.querySelectorAll("button")].filter((b) => /copiar respuesta|copy response/i.test(b.getAttribute("aria-label") || "")).pop();
+    let mejor = null;
+    for (let n = copiar?.parentElement, k = 0; n && k < 10; n = n.parentElement, k++) {
+      if (/t[uú] dijiste|you said/i.test(n.innerText || "")) break;
+      if ((n.innerText || "").trim()) mejor = n;
+    }
+    texto = (mejor?.innerText || "")
+      .split("\n")
+      .filter((l) => !/^(chatgpt( plus| dijo:| said:)?|chatgpt es una ia.*|chatgpt can make mistakes.*|iniciar sesi[oó]n|registrarse.*|log in|sign up.*|copiar|compartir|share|copy)$/i.test(l.trim()))
+      .join("\n")
+      .trim();
+  }
+  return { texto, escribiendo, usuario: usuario.length, url: location.href };
+}
+
+async function preguntarChatGPT(pregunta, ctl = {}) {
+  const url = "https://chatgpt.com/?temporary-chat=true&q=" + encodeURIComponent(pregunta);
+  let pestana;
+  try {
+    pestana = await chrome.tabs.create({ url, active: false });
+    if (ctl) ctl.pestana = pestana.id;
+    await esperarCarga(pestana.id);
+    let previo = "";
+    let estables = 0;
+    const fin = Date.now() + 120000;
+    while (Date.now() < fin) {
+      if (ctl?.cancelada) return null;
+      await new Promise((r) => setTimeout(r, 1500));
+      const r = await ejecutar(pestana.id, leerRespuestaChatGPT);
+      if (!r) continue;
+      if (r.texto && !r.escribiendo && r.texto === previo) {
+        if (++estables >= 2) return r.texto;
+      } else estables = 0;
+      previo = r.texto;
+    }
+    return previo || null;
+  } catch {
+    return null;
+  } finally {
+    if (pestana) chrome.tabs.remove(pestana.id).catch(() => {});
+  }
+}
+
+// Accesible desde la consola del service worker (diagnostico).
+self.preguntarChatGPT = preguntarChatGPT;
+
