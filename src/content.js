@@ -1484,6 +1484,11 @@
     'stroke-linecap="round" stroke-linejoin="round">' + d + "</svg>";
 
   const ICONOS = {
+    crear: trazo(
+      '<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/>' +
+        '<path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>' +
+        '<path d="M5 2l.6 1.4L7 4l-1.4.6L5 6l-.6-1.4L3 4l1.4-.6z"/>'
+    ),
     guardar: relleno(
       '<path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/>' +
         '<path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>'
@@ -1746,6 +1751,41 @@
   };
 
   /** Boton circular que se expande al pasar el raton y despliega su menu. */
+  /*
+   * "Crear con IA": analisis del anuncio en ChatGPT (chat temporal, sin
+   * dejar rastro en el historial). Va el encargo, unos datos del anuncio y
+   * su texto, recortado si la URL se pasaria del limite.
+   */
+  const PROMPTS_CREAR = [
+    ["Palabras clave", "Analiza el anuncio de abajo y extrae las palabras clave y terminos de busqueda que usaria el publico objetivo para encontrar este producto o servicio. Organizalas en principales, secundarias y de cola larga."],
+    ["Segmentacion de audiencia", "Analiza el anuncio de abajo y define la segmentacion de publico ideal para anuncios en Meta: rango de edad, genero, ubicacion, intereses, comportamientos, nivel de conciencia del problema y los dolores principales de ese publico."],
+    ["Analisis de persuasion", "Analiza los elementos de persuasion del anuncio de abajo: disparadores mentales, el framework de copy usado (PAS, AIDA u otro), apelaciones emocionales, pruebas sociales y la llamada a la accion. Evalua la eficacia de cada elemento y señala el mas debil."],
+    ["Variaciones para prueba A/B", "Escribe cinco variaciones del anuncio de abajo para una prueba A/B. Cada variacion debe cambiar UNA sola cosa (angulo, promesa, prueba o llamada a la accion) y di cual fue el cambio en cada una."],
+    ["Estructura de la oferta", "Descompon la oferta del anuncio de abajo: promesa central, mecanismo, que incluye, bonos, anclaje de precio, garantia y escasez. Señala que le falta para que la oferta sea mas fuerte."],
+    ["Avatar del cliente", "A partir del anuncio de abajo, describe el avatar del cliente: quien es, su rutina, que ya intento y no le funciono, que teme, que desea y las objeciones que pone antes de comprar."],
+    ["Angulos creativos", "Propone ocho angulos creativos diferentes para vender el producto del anuncio de abajo. Para cada angulo da la idea central y una frase de apertura que atrape la atencion en los tres primeros segundos."],
+    ["Embudo de quiz", "Arma un embudo de quiz para el producto del anuncio de abajo: las preguntas, las opciones de respuesta, como cada camino segmenta al cliente y el mensaje de resultado que lleva a la oferta."],
+  ];
+
+  const crearConIA = (a, encargo) => {
+    const copy = (a.cuerpo || "").trim();
+    if (!copy && !a.titulo) return aviso("Este anuncio no tiene texto para analizar", true);
+    const datos = [
+      ["Titulo", a.titulo],
+      ["Llamada a la accion", a.ctaTexto],
+      ["Dominio de destino", dominioDe(a.linkUrl)],
+    ]
+      .filter(([, v]) => v && String(v).trim())
+      .map(([k, v]) => k + ": " + String(v).trim().slice(0, 200));
+    const inicio = encargo + " Responde en español." + (datos.length ? "\n\n" + datos.join("\n") : "") + '\n\nAnuncio:\n"""\n';
+    const fin = '\n"""';
+    const url = (texto) => "https://chatgpt.com/?temporary-chat=true&q=" + encodeURIComponent(inicio + texto + fin);
+    let cuerpo = copy || a.titulo;
+    // Las URL muy largas fallan: se recorta el texto hasta que quepa.
+    while (url(cuerpo).length > 28000 && cuerpo.length > 50) cuerpo = cuerpo.slice(0, Math.floor(cuerpo.length * 0.9)) + "…";
+    abrir(url(cuerpo));
+  };
+
   const accion = (etiqueta, icono, opciones, extraClase) => {
     const cont = el("div", "was-accion " + (extraClase || ""));
     const btn = el("button", "was-accion-btn", svg(icono));
@@ -1879,6 +1919,14 @@
         ["Buscar anuncios similares", () => buscarSimilares(a)],
         ["Vigilar este anunciante", () => alternarVigilado(a)],
       ])
+    );
+
+    bandeja.appendChild(
+      accion(
+        "Crear con IA",
+        ICONOS.crear,
+        PROMPTS_CREAR.map(([titulo, encargo]) => [titulo, () => crearConIA(a, encargo)])
+      )
     );
 
     const textoEnlaces =

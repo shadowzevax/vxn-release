@@ -8,6 +8,13 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.12.0
+
+- Nuevo boton "Crear con IA" en cada tarjeta (destellos): 8 analisis del
+  anuncio que se abren en ChatGPT en chat temporal: palabras clave,
+  segmentacion de audiencia, analisis de persuasion, variaciones A/B,
+  estructura de la oferta, avatar del cliente, angulos creativos y embudo de quiz.
+
 ## 1.11.0
 
 - "Anuncios similares" se puede minimizar (boton "-"): queda una capsula
