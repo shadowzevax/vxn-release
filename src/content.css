@@ -2726,3 +2726,82 @@ html.was-tema-pestana .was-rapida {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* ===================== capsula de una ventana minimizada ===================== */
+
+.was-capsula {
+  position: fixed;
+  z-index: 2147483000;
+  top: 14px;
+  left: 200px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 320px;
+  padding: 5px 14px 5px 5px;
+  font: 700 12.5px/1 var(--was-ui, system-ui, sans-serif);
+  color: #fff;
+  background: #16181d;
+  border: 1px solid rgba(139, 92, 246, 0.6);
+  border-radius: 999px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  cursor: grab;
+  user-select: none;
+}
+
+.was-capsula:hover {
+  border-color: #8b5cf6;
+}
+
+.was-capsula-foto {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #fff;
+}
+
+.was-capsula-texto {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Girando mientras busca; un check verde al terminar. */
+.was-capsula-giro {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #8b5cf6;
+  border-radius: 50%;
+  animation: was-girar 0.8s linear infinite;
+}
+
+.was-capsula-lista {
+  border-color: rgba(18, 217, 94, 0.7);
+}
+
+.was-capsula-lista .was-capsula-giro {
+  width: 8px;
+  height: 8px;
+  background: #12d95e;
+  border: 0;
+  animation: none;
+}
+
+@keyframes was-girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.was-modal-cab .was-minimizar {
+  margin-left: auto;
+  font-size: 20px;
+}
+
+.was-modal-cab .was-minimizar + .was-cerrar {
+  margin-left: 4px;
+}

@@ -1203,7 +1203,7 @@
     if (multiDescarga.activo) return desactivarMultiDescarga();
     // Escape cierra primero el cuadro de ajustes abierto dentro del panel, y
     // si no hay ninguno, recoge el panel en su circulo.
-    if (!panel || document.querySelector(".was-suelto-fondo")) return;
+    if (!panel || hayVentanaSuelta()) return;
     const abierto = panel.querySelector(".was-modal-fondo");
     if (abierto) return abierto._wasQuitar ? abierto._wasQuitar() : abierto.remove();
     if (!panel.classList.contains("was-plegado")) panel.querySelector(".was-plegar")?.click();
@@ -2297,8 +2297,10 @@
   const mostrarAnunciantes = (titulo, secciones, opciones = {}) => {
     const fondo = el("div", "was-suelto-fondo");
     const caja = el("div", "was-suelto was-suelto-ficha was-suelto-anunciantes");
+    let capsula = null;
     const cerrar = () => {
       fondo.remove();
+      capsula?.remove();
       opciones.alCerrar?.();
     };
 
@@ -2306,6 +2308,50 @@
     cab.appendChild(el("h3", null, titulo));
     const x = el("button", "was-cerrar", "&times;");
     x.addEventListener("click", cerrar);
+
+    /*
+     * Minimizar: la ventana se oculta (sigue viva y actualizandose) y queda
+     * una capsula flotante arrastrable que dice si aun busca o ya termino.
+     * Asi se puede seguir usando la Biblioteca mientras tanto.
+     */
+    let ultimoEstado = opciones.estado;
+    let ultimoTotal = 0;
+    const pintarCapsula = () => {
+      if (!capsula) return;
+      const buscando = !!ultimoEstado?.buscando;
+      capsula.classList.toggle("was-capsula-lista", !buscando);
+      capsula.querySelector(".was-capsula-texto").textContent = buscando
+        ? "Buscando similares... " + ultimoTotal
+        : "Similares listos: " + ultimoTotal;
+      capsula.title = buscando ? "Sigue buscando. Pulsa para ver la ventana" : "Busqueda terminada. Pulsa para ver los resultados";
+    };
+    const restaurar = () => {
+      capsula?.remove();
+      capsula = null;
+      fondo.style.display = "";
+    };
+    if (opciones.minimizable) {
+      const min = el("button", "was-cerrar was-minimizar", "&minus;");
+      min.title = "Minimizar (seguir usando la Biblioteca)";
+      min.addEventListener("click", () => {
+        fondo.style.display = "none";
+        capsula = el("button", "was-capsula");
+        const foto = el("img", "was-capsula-foto");
+        foto.src = opciones.original?.foto || urlExt("icons/vyxen-128.png");
+        foto.alt = "";
+        foto.draggable = false;
+        capsula.append(foto, el("span", "was-capsula-giro"), el("span", "was-capsula-texto"));
+        // Varias capsulas a la vez: cada una un poco mas abajo.
+        const otras = document.querySelectorAll(".was-capsula").length;
+        capsula.style.top = 14 + otras * 46 + "px";
+        capsula.addEventListener("click", restaurar);
+        document.body.appendChild(capsula);
+        if (!otras) arrastrable(capsula, capsula, "was-pos-capsula");
+        else arrastrable(capsula, capsula, "was-pos-capsula-" + otras);
+        pintarCapsula();
+      });
+      cab.appendChild(min);
+    }
     cab.appendChild(x);
     caja.appendChild(cab);
 
@@ -2399,6 +2445,9 @@
     // Estado: buscando (con texto de avance) o terminado.
     const actualizar = (secs, estado) => {
       buscandoAhora = !!estado?.buscando;
+      ultimoEstado = estado;
+      ultimoTotal = secs.reduce((n, sec) => n + sec.lista.length, 0);
+      pintarCapsula();
       pintarSecciones(secs);
       pintarPie();
       const hay = secs.some((sec) => sec.lista.length);
@@ -2415,6 +2464,9 @@
     document.body.appendChild(fondo);
     return { actualizar, abierto: () => fondo.isConnected };
   };
+
+  // Hay una ventana suelta a la vista (las minimizadas no cuentan).
+  const hayVentanaSuelta = () => [...document.querySelectorAll(".was-suelto-fondo")].some((f) => f.style.display !== "none");
 
   const verAnunciantesOferta = (id) => {
     const lista = anunciantesDeOferta.get(id) || [];
@@ -2669,6 +2721,7 @@
     // Lo que ya esta cargado en esta pagina cuenta desde el primer momento.
     clasificar([...anuncios.values()]);
     ventana = mostrarAnunciantes("Anuncios similares", secciones(), {
+      minimizable: true,
       original: datosAnunciante(a),
       estado: { buscando: true, texto: 'Buscando "' + frase + '" en la Biblioteca...' },
       seleccion: { marcados, textoBoton: "Buscar mas con los correctos", alPulsar: etapa2 },

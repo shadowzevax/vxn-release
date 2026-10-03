@@ -8,6 +8,13 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.11.0
+
+- "Anuncios similares" se puede minimizar (boton "-"): queda una capsula
+  flotante y arrastrable junto al logo de Meta que muestra si sigue buscando
+  (y cuantos lleva) o si ya termino. Al pulsarla se abre de nuevo la ventana.
+  Mientras tanto se puede seguir usando la Biblioteca.
+
 ## 1.10.1
 
 - Tarjetas sin decorar tras volver atras o regresar a una busqueda ya vista:
