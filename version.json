@@ -1,4 +1,4 @@
 {
-  "version": "1.15.0",
-  "notas": "Similares usa ChatGPT (chat temporal) para elegir las palabras de busqueda."
+  "version": "1.16.0",
+  "notas": "Ajustes de Buscar anuncios similares: elige que metodos usar."
 }

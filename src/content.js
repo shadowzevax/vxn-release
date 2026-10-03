@@ -97,6 +97,14 @@
     multiDescargaConTexto: false,
     // Accesos de la bandeja rapida (ids de ACCESOS); null = predeterminados.
     accesosRapidos: null,
+    // "Buscar anuncios similares": que metodos usa (ver ajustesSimilares).
+    simExacta: true,
+    simAmplia: true,
+    simProducto: true,
+    simWeb: true,
+    simIA: true,
+    simIANum: 5,
+    simTandas: 4,
     // Pausas al azar y frenos ante verificaciones para evitar bloqueos.
     modoSeguro: true,
     // Avisar cuando un anunciante vigilado publica anuncios nuevos.
@@ -1484,6 +1492,10 @@
     'stroke-linecap="round" stroke-linejoin="round">' + d + "</svg>";
 
   const ICONOS = {
+    engranaje: trazo(
+      '<circle cx="12" cy="12" r="3"/>' +
+        '<path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'
+    ),
     crear: trazo(
       '<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/>' +
         '<path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>' +
@@ -1867,7 +1879,7 @@
      * que pasa con las tarjetas del final de la pagina.
      */
     const panel = el("div", "was-panel");
-    for (const [texto, fn] of opciones) {
+    for (const [texto, fn, ajustes] of opciones) {
       const item = el("button", "was-item");
       item.textContent = texto;
       item.addEventListener("click", (e) => {
@@ -1875,6 +1887,18 @@
         cerrar();
         fn();
       });
+      // Engranaje propio de la opcion: abre sus ajustes sin ejecutarla.
+      if (ajustes) {
+        item.classList.add("was-item-con-ajustes");
+        const rueda = el("span", "was-item-engranaje", svg(ICONOS.engranaje));
+        rueda.title = "Ajustes de " + texto.toLowerCase();
+        rueda.addEventListener("click", (e) => {
+          e.stopPropagation();
+          cerrar();
+          ajustes();
+        });
+        item.appendChild(rueda);
+      }
       panel.appendChild(item);
     }
 
@@ -1969,7 +1993,7 @@
         ["Buscar anuncios de este sitio", () => abrir(buscarSitio(a.linkUrl))],
         ["Buscar anuncios de este anunciante", () => abrir(buscarAnunciante(a.paginaId))],
         ["URL del anuncio en la Biblioteca", () => abrir(bibliotecaUrl(a.id))],
-        ["Buscar anuncios similares", () => buscarSimilares(a)],
+        ["Buscar anuncios similares", () => buscarSimilares(a), ajustesSimilares],
         ["Vigilar este anunciante", () => alternarVigilado(a)],
       ])
     );
@@ -2702,6 +2726,85 @@
    * uno abre resultados que el original no encontraba). Cada resultado se
    * compara contra TODOS los anuncios de referencia, y se puede repetir.
    */
+  /*
+   * Ajustes de "Buscar anuncios similares" (engranaje en el menu Abrir):
+   * que metodos usar. Mas metodos encuentran mas, pero cada uno es una
+   * pasada mas por la Biblioteca (~15-25 s cada una).
+   */
+  const ajustesSimilares = () => {
+    const fondo = el("div", "was-suelto-fondo");
+    const caja = el("div", "was-suelto was-suelto-ficha was-suelto-ajustes-sim");
+    const cerrarAj = () => fondo.remove();
+    const cab = el("div", "was-modal-cab");
+    cab.appendChild(el("h3", null, "Ajustes de anuncios similares"));
+    const x = el("button", "was-cerrar", "&times;");
+    x.addEventListener("click", cerrarAj);
+    cab.appendChild(x);
+    caja.appendChild(cab);
+
+    const estimado = el("div", "was-ajustes-sim-estimado");
+    const pintarEstimado = () => {
+      const n = (prefs.simExacta ? 1 : 0) + (prefs.simAmplia ? 1 : 0) + (prefs.simProducto ? 1 : 0) +
+        (prefs.simWeb ? 1 : 0) + (prefs.simIA ? prefs.simIANum : 0);
+      const seg = n * (8 + prefs.simTandas * (prefs.modoSeguro ? 3.6 : 1.8)) + (prefs.simIA ? 15 : 0);
+      estimado.textContent = n
+        ? "Hasta " + n + " pasadas por la Biblioteca · aprox. " + Math.max(1, Math.round(seg / 60)) + " min"
+        : "Ningun metodo activo";
+    };
+    const sw = (texto, clave, ayuda) => interruptor(texto, clave, pintarEstimado, ayuda);
+    caja.append(
+      sw("Frase exacta del anuncio", "simExacta", "Busca la frase mas caracteristica del texto, tal cual. Rapida y muy precisa: encuentra copias casi identicas."),
+      sw("Busqueda amplia", "simAmplia", "Las mismas palabras de esa frase en cualquier orden. Encuentra copias con retoques, pero trae mas ruido."),
+      sw("Nombre del producto (del anuncio)", "simProducto", 'El nombre que aparece entre comillas, en MAYUSCULAS o como Nombre Propio en el texto (p. ej. "Grandes Mentes").'),
+      sw("Nombre del producto (de su pagina web)", "simWeb", "Lee la pagina de ventas del anuncio y busca por el nombre del producto de su titulo. Suele ser la busqueda mas certera."),
+      sw("Palabras de ChatGPT", "simIA", "Le pide a ChatGPT (chat temporal, en segundo plano) las busquedas mas precisas con el anuncio y su web. La mas lenta: unos 10 s de espera mas una pasada por cada palabra.")
+    );
+
+    const num = (texto, clave, min, max, ayuda) => {
+      const n = el("input", "was-num");
+      n.type = "number";
+      n.min = min;
+      n.max = max;
+      n.value = prefs[clave];
+      n.dataset.wasClave = clave;
+      n.addEventListener("input", () => {
+        prefs[clave] = Math.min(max, Math.max(min, Number(n.value) || min));
+        guardarPrefs();
+        pintarEstimado();
+      });
+      return control(texto, n, ayuda);
+    };
+    caja.append(
+      num("Palabras de ChatGPT a usar", "simIANum", 1, 8, "Cuantas de las busquedas que propone ChatGPT se usan (van de la mas precisa a la mas amplia)."),
+      num("Cargas por busqueda", "simTandas", 0, 10, "Cuantas veces se baja en cada busqueda para traer mas resultados. Mas cargas = mas anunciantes, pero mas lento.")
+    );
+
+    const rapido = el("button", "was-mini was-mini-suave", "Rapido");
+    rapido.title = "Solo frase exacta y nombre de la web, 2 cargas";
+    const completo = el("button", "was-mini was-mini-suave", "Completo");
+    completo.title = "Todos los metodos";
+    const aplicar = (v) => {
+      Object.assign(prefs, v);
+      guardarPrefs();
+      refrescarControles();
+      pintarEstimado();
+    };
+    rapido.addEventListener("click", () =>
+      aplicar({ simExacta: true, simAmplia: false, simProducto: true, simWeb: true, simIA: false, simTandas: 2 })
+    );
+    completo.addEventListener("click", () =>
+      aplicar({ simExacta: true, simAmplia: true, simProducto: true, simWeb: true, simIA: true, simIANum: 5, simTandas: 4 })
+    );
+    const presets = el("div", "was-ajustes-sim-presets");
+    presets.append(el("span", null, "Preajustes:"), rapido, completo);
+    caja.append(presets, estimado);
+    pintarEstimado();
+
+    fondo.appendChild(caja);
+    fondo.addEventListener("click", (e) => e.target === fondo && cerrarAj());
+    document.body.appendChild(fondo);
+  };
+
   const buscarSimilares = async (a) => {
     const frase = fraseCaracteristica(a);
     if (!frase) return aviso("Este anuncio no tiene texto para buscar", true);
@@ -2799,7 +2902,7 @@
       busqueda = "b" + Date.now() + Math.random().toString(36).slice(2);
       ventana.actualizar(secciones(), { buscando: true, texto: textoInicio });
       try {
-        const finales = (await chrome.runtime.sendMessage({ tipo: "buscarSimilares", pasadas, busqueda })) || [];
+        const finales = (await chrome.runtime.sendMessage({ tipo: "buscarSimilares", pasadas, busqueda, tandas: prefs.simTandas })) || [];
         clasificar(finales);
       } catch {
         aviso("No se pudo completar la busqueda", true);
@@ -2811,15 +2914,15 @@
     const pasadasDe = (x, amplia) => {
       const out = [];
       const f = fraseCaracteristica(x);
-      if (f && !yaBuscado.has("e|" + f)) {
+      if (prefs.simExacta && f && !yaBuscado.has("e|" + f)) {
         yaBuscado.add("e|" + f);
         out.push(["keyword_exact_phrase", "frase exacta", f]);
       }
-      if (amplia && f && !yaBuscado.has("u|" + f)) {
+      if (amplia && prefs.simAmplia && f && !yaBuscado.has("u|" + f)) {
         yaBuscado.add("u|" + f);
         out.push(["keyword_unordered", "busqueda amplia", f]);
       }
-      const prod = nombreProducto(x);
+      const prod = prefs.simProducto ? nombreProducto(x) : "";
       if (prod && !yaBuscado.has("p|" + plano(prod))) {
         yaBuscado.add("p|" + plano(prod));
         out.push(["keyword_exact_phrase", "nombre del producto", prod]);
@@ -2873,11 +2976,12 @@
     const pasadas = pasadasDe(a, true);
     const destino = limpiarUrl(a.linkUrl);
     let web = null;
-    if (destino && !/facebook\.com|instagram\.com|whatsapp\.com|wa\.me|fb\.me|messenger\.com/i.test(destino)) {
+    const leerWeb = prefs.simWeb || prefs.simIA;
+    if (leerWeb && destino && !/facebook\.com|instagram\.com|whatsapp\.com|wa\.me|fb\.me|messenger\.com/i.test(destino)) {
       ventana.actualizar(secciones(), { buscando: true, texto: "Leyendo la pagina de ventas del anuncio..." });
       web = await chrome.runtime.sendMessage({ tipo: "textoLanding", url: destino }).catch(() => null);
       if (!ventana.abierto()) return;
-      for (const nombre of nombresDeLaWeb(web?.texto || "", a)) {
+      for (const nombre of prefs.simWeb ? nombresDeLaWeb(web?.texto || "", a) : []) {
         const clave = "p|" + plano(nombre);
         if (yaBuscado.has(clave)) continue;
         yaBuscado.add(clave);
@@ -2891,28 +2995,34 @@
      * propone las busquedas con el anuncio y su pagina de ventas. Si no
      * responde, se sigue sin ellas.
      */
-    ventana.actualizar(secciones(), { buscando: true, texto: "Pidiendo a ChatGPT las palabras de busqueda..." });
-    busqueda = "ia" + Date.now() + Math.random().toString(36).slice(2);
-    let cuerpoIA = datosParaPalabras(a, destino, web);
-    if (cuerpoIA.length > 12000) cuerpoIA = cuerpoIA.slice(0, 12000) + "…";
-    const respuesta = await chrome.runtime
-      .sendMessage({ tipo: "preguntarChatGPT", busqueda, pregunta: ENCARGO_PALABRAS + '\n\n"""\n' + cuerpoIA + '\n"""' })
-      .catch(() => null);
-    if (!ventana.abierto()) return;
-    // Las 5 primeras (vienen de la mas precisa a la mas amplia): mas pasadas
-    // alargan mucho la busqueda.
-    const deLaIA = busquedasDeLaIA(respuesta).slice(0, 5);
-    const nuevasIA = [];
-    for (const t of deLaIA) {
-      const clave = "e|" + plano(t);
-      if (yaBuscado.has(clave) || yaBuscado.has("p|" + plano(t))) continue;
-      yaBuscado.add(clave);
-      nuevasIA.push(["keyword_exact_phrase", "IA: " + t, t]);
+    if (prefs.simIA) {
+      ventana.actualizar(secciones(), { buscando: true, texto: "Pidiendo a ChatGPT las palabras de busqueda..." });
+      busqueda = "ia" + Date.now() + Math.random().toString(36).slice(2);
+      let cuerpoIA = datosParaPalabras(a, destino, web);
+      if (cuerpoIA.length > 12000) cuerpoIA = cuerpoIA.slice(0, 12000) + "…";
+      const respuesta = await chrome.runtime
+        .sendMessage({ tipo: "preguntarChatGPT", busqueda, pregunta: ENCARGO_PALABRAS + '\n\n"""\n' + cuerpoIA + '\n"""' })
+        .catch(() => null);
+      if (!ventana.abierto()) return;
+      // Las 5 primeras (vienen de la mas precisa a la mas amplia): mas pasadas
+      // alargan mucho la busqueda.
+      const deLaIA = busquedasDeLaIA(respuesta).slice(0, Math.max(1, prefs.simIANum || 5));
+      const nuevasIA = [];
+      for (const t of deLaIA) {
+        const clave = "e|" + plano(t);
+        if (yaBuscado.has(clave) || yaBuscado.has("p|" + plano(t))) continue;
+        yaBuscado.add(clave);
+        nuevasIA.push(["keyword_exact_phrase", "IA: " + t, t]);
+      }
+      // Despues del nombre de la web (lo mas certero) y antes de las de siempre.
+      const nWeb = pasadas.filter((x) => x[1] === "nombre en su web").length;
+      pasadas.splice(nWeb, 0, ...nuevasIA);
+      if (deLaIA.length) aviso("ChatGPT propuso: " + deLaIA.join(", "));
     }
-    // Despues del nombre de la web (lo mas certero) y antes de las de siempre.
-    const nWeb = pasadas.filter((x) => x[1] === "nombre en su web").length;
-    pasadas.splice(nWeb, 0, ...nuevasIA);
-    if (deLaIA.length) aviso("ChatGPT propuso: " + deLaIA.join(", "));
+    if (!pasadas.length) {
+      ventana.actualizar(secciones(), { buscando: false });
+      return aviso("No hay metodos activos: revisa el engranaje de Buscar anuncios similares", true);
+    }
     await correr(pasadas, 'Buscando "' + frase + '" en la Biblioteca...');
   };
 

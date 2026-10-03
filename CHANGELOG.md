@@ -8,6 +8,14 @@ Versionado MAYOR.MENOR.PARCHE:
 Al publicar una version nueva: subir el numero en `manifest.json` y en
 `version.json`, anotarla aqui, hacer commit, etiqueta `vX.Y.Z` y subir a GitHub.
 
+## 1.16.0
+
+- Engranaje en "Abrir > Buscar anuncios similares": ventana de ajustes para
+  elegir los metodos (frase exacta, busqueda amplia, nombre del producto en el
+  anuncio, nombre en su web, palabras de ChatGPT), cuantas palabras de ChatGPT
+  usar y cuantas cargas por busqueda. Muestra el tiempo aproximado y trae
+  preajustes "Rapido" y "Completo".
+
 ## 1.15.0
 
 - "Buscar anuncios similares" le pide a ChatGPT (siempre en chat temporal, en

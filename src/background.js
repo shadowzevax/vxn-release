@@ -1106,6 +1106,7 @@ chrome.runtime.onMessage.addListener((msg, _remitente, responder) => {
       chrome.tabs.sendMessage(_remitente.tab.id, { tipo: "similaresParcial", busqueda: msg.busqueda, ...datos }).catch(() => {});
     const ctl = { cancelada: false, pestana: null, origen: _remitente.tab.id };
     busquedasSimilares.set(msg.busqueda, ctl);
+    ctl.tandas = Math.min(10, Math.max(0, Number(msg.tandas ?? 4)));
     buscarSimilares(msg.pasadas, avisar, ctl)
       .then(responder)
       .catch(() => responder([]))
@@ -1280,7 +1281,8 @@ async function buscarSimilaresPasada(frase, tipo, avisar, ctl = {}) {
       lista = await volcar();
     }
     avisar({ anuncios: lista || [], texto: "Revisando resultados (" + (lista || []).length + " anuncios)..." });
-    const TANDAS = 4;
+    // Cuantas veces se baja para cargar mas resultados (ajuste del usuario).
+    const TANDAS = ctl.tandas ?? 4;
     for (let i = 0; i < TANDAS; i++) {
       seguir();
       await chrome.scripting.executeScript({ target: { tabId: pestana.id }, func: () => window.scrollTo(0, document.body.scrollHeight) }).catch(() => {});

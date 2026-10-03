@@ -2805,3 +2805,57 @@ html.was-tema-pestana .was-rapida {
 .was-modal-cab .was-minimizar + .was-cerrar {
   margin-left: 4px;
 }
+
+/* ===================== engranaje en opciones del menu + ajustes de similares ===================== */
+
+.was-item.was-item-con-ajustes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.was-item-engranaje {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: -4px -6px -4px 0;
+  border-radius: 6px;
+  opacity: 0.85;
+}
+
+.was-item-engranaje:hover {
+  background: rgba(255, 255, 255, 0.18);
+  opacity: 1;
+}
+
+.was-item-engranaje svg {
+  width: 15px;
+  height: 15px;
+}
+
+.was-suelto-ajustes-sim {
+  width: min(430px, calc(100vw - 40px));
+}
+
+.was-ajustes-sim-presets {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--was-gris);
+}
+
+.was-ajustes-sim-estimado {
+  margin-top: 10px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #4a5361;
+  background: #f0f2f5;
+  border-radius: 8px;
+}
